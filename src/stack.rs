@@ -1,13 +1,16 @@
 use std::num::ParseIntError;
 
-use crate::opcode::Opcode;
+use crate::{opcode::Opcode, storage::Storage};
 
 #[derive(PartialEq, Debug)]
 pub struct Stack(Vec<u8>);
 
 impl Stack {
-
     pub const EMPTY: Stack = Stack(vec![]);
+
+    pub fn get(&self, i: usize) -> Option<&u8> {
+        self.0.get(i)
+    }
 
     pub fn new() -> Self {
         Stack(Vec::<u8>::new())
@@ -20,23 +23,74 @@ impl Stack {
     pub fn pop(&mut self) -> (Option<u8>, &Self) {
         (self.0.pop(), self)
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
     let mut stack = Stack::new();
+    let mut storage = Storage::new();
     let mut sum = 0x00;
     let mut opcodes = opcode.into_iter();
 
     while let Some(code) = opcodes.next() {
-        if code == Opcode::PUSH1 {
-            if let Some(Opcode(n)) = opcodes.next() {
-                stack.push(n);
+        match code {
+            Opcode::PUSH1 => {
+                if let Some(Opcode(n)) = opcodes.next() {
+                    stack.push(n);
+                }
             }
-        } else if code == Opcode::ADD {
-            while let (Some(v), _) = stack.pop() {
-                sum += v;
+            Opcode::DUP2 => {
+                if stack.len() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.len()
+                    );
+                }
+                if let Some(el) = stack.get(stack.len() - 2) {
+                    stack.push(*el);
+                }
             }
-            stack.push(sum);
+            Opcode::POP => {
+                stack.pop();
+            }
+            Opcode::SSTORE => {
+                if stack.len() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.len()
+                    );
+                }
+                if let (Some(first), _) = stack.pop() {
+                    if let (Some(second), _) = stack.pop() {
+                        storage.insert(first, second);
+                    }
+                }
+            }
+            Opcode::SWAP1 => {
+                if stack.len() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.len()
+                    );
+                }
+
+                if let (Some(first), _) = stack.pop() {
+                    if let (Some(second), _) = stack.pop() {
+                        stack.push(first);
+                        stack.push(second);
+                    }
+                }
+            }
+            Opcode::ADD => {
+                while let (Some(v), _) = stack.pop() {
+                    sum += v;
+                }
+                stack.push(sum);
+            }
+            _ => todo!(),
         }
     }
     stack
@@ -68,9 +122,13 @@ fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
                         tokens.push(result.unwrap());
                     }
                 }
-            },
+            }
             Opcode::ADD => tokens.push(Opcode::ADD),
-            _ => todo!(),
+            Opcode::DUP2 => tokens.push(Opcode::DUP2),
+            Opcode::POP => tokens.push(Opcode::POP),
+            Opcode::SWAP1 => tokens.push(Opcode::SWAP1),
+            Opcode::SSTORE => tokens.push(Opcode::SSTORE),
+            op => tokens.push(op),
         }
     }
     Ok(tokens)
@@ -95,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lex() {
+    fn test_lex_bytecode_1() {
         let result = lex_bytecode("0x6001600101").unwrap();
         assert_eq!(
             result,
@@ -110,12 +168,37 @@ mod tests {
     }
 
     #[test]
-    fn test_eval() {
+    fn test_lex_bytecode_2() {
+        let result = lex_bytecode("0x6001600081905550").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH1,
+                Opcode(0x01),
+                Opcode::PUSH1,
+                Opcode(0x00),
+                Opcode::DUP2,
+                Opcode::SWAP1,
+                Opcode::SSTORE,
+                Opcode::POP,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_eval_1() {
         let result = lex_bytecode("0x6001600101").unwrap();
         let mut stack = eval_opcode(result);
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), 0x02);
         assert_eq!(*tl, Stack::EMPTY);
     }
-}
 
+    #[test]
+    fn test_eval_2() {
+        let result = lex_bytecode("0x6001600081905550").unwrap();
+        let mut stack = eval_opcode(result);
+        let (hd, _) = stack.pop();
+        assert!(hd.is_none());
+    }
+}

@@ -6,7 +6,7 @@ A toy stack machine to play around with Ethereum bytecode.
 
 **toy-evm** is a little stack machine that parses a limited set of Ethereum bytecode, convert them to the corresponding opcodes, and use a stack to do some computations.
 
-The current version only supports `PUSH1` and `ADD` opcodes.
+The current version only supports `ADD`, `PUSH1`, `DUP2`, `SWAP1`, `POP`, and `SSTORE` opcodes.
 
 ## Example
 
