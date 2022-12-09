@@ -44,8 +44,6 @@ impl Stack {
 pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
     let mut stack = Stack::new();
     let mut storage = Storage::new();
-    let mut sum = UInt256::zero();
-    let mut prod = UInt256::one();
     let mut opcodes = opcode.into_iter();
 
     while let Some(code) = opcodes.next() {
@@ -171,6 +169,24 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
                         let prod = last * second_last;
+                        let mut bytes = [0x00; 32];
+                        prod.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push1(bytes[0]) {
+                            panic!("{}", e);
+                        }
+                    }
+                }
+            }
+            Opcode::SUB => {
+                if stack.size() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
+                }
+                if let (Some(last), _) = stack.pop() {
+                    if let (Some(second_last), _) = stack.pop() {
+                        let prod = last - second_last;
                         let mut bytes = [0x00; 32];
                         prod.to_little_endian(&mut bytes);
                         if let Err(e) = stack.push1(bytes[0]) {
@@ -305,6 +321,21 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_bytecode_sub() {
+        let result = lex_bytecode("0x6001600203").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH1,
+                Opcode(0x01),
+                Opcode::PUSH1,
+                Opcode(0x02),
+                Opcode::SUB,
+            ],
+        );
+    }
+
+    #[test]
     fn test_lex_bytecode_iszero() {
         let result = lex_bytecode("0x600015").unwrap();
         assert_eq!(result, vec![Opcode::PUSH1, Opcode(0x00), Opcode::ISZERO],);
@@ -331,9 +362,7 @@ mod tests {
     /// Basically testing 1 + 1 = 2.
     #[test]
     fn test_eval_add() {
-        let result = lex_bytecode("0x6001600101").unwrap();
-        println!("{:?}", result);
-        let (mut stack, _) = eval_opcode(result);
+        let (mut stack, _) = eval_opcode(lex_bytecode("0x6001600101").unwrap());
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
@@ -342,13 +371,18 @@ mod tests {
     /// Basically testing 2 * 2 = 4.
     #[test]
     fn test_eval_mul() {
-        let result = lex_bytecode("0x6002600202").unwrap();
-        println!("{:?}", result);
-
-        let (mut stack, _) = eval_opcode(result);
+        let (mut stack, _) = eval_opcode(lex_bytecode("0x6002600202").unwrap());
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x04]));
         assert_eq!(*tl, Stack::EMPTY);
+    }
+
+    #[test]
+    fn test_eval_sub() {
+        let (mut stack, _) = eval_opcode(lex_bytecode("0x6001600203").unwrap());
+        let (last, rest) = stack.pop();
+        assert_eq!(last.unwrap(), UInt256::from_little_endian(&[0x01]));
+        assert_eq!(*rest, Stack::EMPTY);
     }
 
     #[test]
