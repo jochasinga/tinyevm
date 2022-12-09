@@ -6,6 +6,7 @@ pub struct Opcode(pub u8);
 impl Opcode {
     pub const ADD: Opcode = Opcode(0x01);
     pub const MUL: Opcode = Opcode(0x02);
+    pub const ISZERO: Opcode = Opcode(0x15);
     pub const POP: Opcode = Opcode(0x50);
     pub const SSTORE: Opcode = Opcode(0x55);
     pub const PUSH1: Opcode = Opcode(0x60);
@@ -23,9 +24,11 @@ impl FromStr for Opcode {
             Ok(u) => match u {
                 0x01 => Ok(Self::ADD),
                 0x02 => Ok(Self::MUL),
+                0x15 => Ok(Self::ISZERO),
                 0x50 => Ok(Self::POP),
                 0x55 => Ok(Self::SSTORE),
                 0x60 => Ok(Self::PUSH1),
+                0x80 => Ok(Self::DUP1),
                 0x81 => Ok(Self::DUP2),
                 0x90 => Ok(Self::SWAP1),
                 v => Ok(Self(v)),

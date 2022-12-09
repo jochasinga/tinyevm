@@ -13,6 +13,10 @@ impl Stack {
         self.0.get(i)
     }
 
+    pub fn top(&self) -> Option<&UInt256> {
+        self.0.last()
+    }
+
     pub fn new() -> Self {
         Stack(Vec::<UInt256>::new())
     }
@@ -51,6 +55,20 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                     if let Err(e) = stack.push1(n) {
                         panic!("{}", e);
                     }
+                }
+            }
+            Opcode::ISZERO => {
+                if let Some(top) = stack.top() {
+                    if top.is_zero() {
+                        stack.push1(0x01).unwrap();
+                    } else {
+                        stack.push1(0x00).unwrap();
+                    }
+                } else {
+                    panic!(
+                        "Expect stack to have at least one element. Instead found {}",
+                        stack.size()
+                    );
                 }
             }
             Opcode::DUP1 => {
@@ -273,6 +291,12 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_bytecode_iszero() {
+        let result = lex_bytecode("0x600015").unwrap();
+        assert_eq!(result, vec![Opcode::PUSH1, Opcode(0x00), Opcode::ISZERO],);
+    }
+
+    #[test]
     fn test_lex_bytecode_push1_dup2_swap1_sstore_pop() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
         assert_eq!(
@@ -311,6 +335,17 @@ mod tests {
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x04]));
         assert_eq!(*tl, Stack::EMPTY);
+    }
+
+    #[test]
+    fn test_eval_iszero() {
+        let result = lex_bytecode("0x600015").unwrap();
+        let (mut stack, _) = eval_opcode(result);
+        let (hd, tl) = stack.pop();
+
+        // We should end up with 0x01 on the stack for "true".
+        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x01]));
+        assert_eq!(*tl, Stack(vec![UInt256::from_little_endian(&[0x00])]));
     }
 
     #[test]
