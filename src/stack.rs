@@ -29,10 +29,12 @@ impl Stack {
     }
 }
 
-fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
+/// Evaluate a vector of opcodes and return the stack.
+pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
     let mut stack = Stack::new();
     let mut storage = Storage::new();
     let mut sum = 0x00;
+    let mut prod = 0x01;
     let mut opcodes = opcode.into_iter();
 
     while let Some(code) = opcodes.next() {
@@ -90,14 +92,20 @@ fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
                 }
                 stack.push(sum);
             }
+            Opcode::MUL => {
+                while let (Some(v), _) = stack.pop() {
+                    prod *= v;
+                }
+                stack.push(prod);
+            }
             _ => todo!(),
         }
     }
     stack
 }
 
-/// Lex the bytecode, byte by byte.
-fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
+/// Lex the bytecode, byte by byte, and return a vector of opcodes.
+pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
     let input = bytecode.trim_start_matches("0x");
     let mut chars = input.chars().into_iter();
     let mut tokens = Vec::<Opcode>::new();
@@ -124,6 +132,7 @@ fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
                 }
             }
             Opcode::ADD => tokens.push(Opcode::ADD),
+            Opcode::MUL => tokens.push(Opcode::MUL),
             Opcode::DUP2 => tokens.push(Opcode::DUP2),
             Opcode::POP => tokens.push(Opcode::POP),
             Opcode::SWAP1 => tokens.push(Opcode::SWAP1),
@@ -153,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_bytecode_1() {
+    fn test_lex_bytecode_add() {
         let result = lex_bytecode("0x6001600101").unwrap();
         assert_eq!(
             result,
@@ -163,6 +172,21 @@ mod tests {
                 Opcode::PUSH1,
                 Opcode(0x01),
                 Opcode::ADD,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_lex_bytecode_mul() {
+        let result = lex_bytecode("0x6002600202").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH1,
+                Opcode(0x02),
+                Opcode::PUSH1,
+                Opcode(0x02),
+                Opcode::MUL,
             ],
         );
     }
@@ -185,12 +209,26 @@ mod tests {
         );
     }
 
+    /// Basically testing 1 + 1 = 2.
     #[test]
-    fn test_eval_1() {
+    fn test_eval_add() {
         let result = lex_bytecode("0x6001600101").unwrap();
+        println!("{:?}", result);
         let mut stack = eval_opcode(result);
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), 0x02);
+        assert_eq!(*tl, Stack::EMPTY);
+    }
+
+    /// Basically testing 2 * 2 = 4.
+    #[test]
+    fn test_eval_mul() {
+        let result = lex_bytecode("0x6002600202").unwrap();
+        println!("{:?}", result);
+
+        let mut stack = eval_opcode(result);
+        let (hd, tl) = stack.pop();
+        assert_eq!(hd.unwrap(), 0x04);
         assert_eq!(*tl, Stack::EMPTY);
     }
 

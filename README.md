@@ -6,17 +6,11 @@ A toy stack machine to play around with Ethereum bytecode.
 
 **toy-evm** is a little stack machine that parses a limited set of Ethereum bytecode, convert them to the corresponding opcodes, and use a stack to do some computations.
 
-The current version only supports `ADD`, `PUSH1`, `DUP2`, `SWAP1`, `POP`, and `SSTORE` opcodes.
+The current version supports `ADD`, `MUL`, `PUSH1`, `DUP2`, `SWAP1`, `POP`, and `SSTORE` opcodes.
 
 ## Example
 
-The following bytecode
-
-```
-0x6001600101
-```
-
-Can be broken down to
+The following bytecode `0x6001600101` is an equivalent of expression `1 + 1` in Solidity. Here is a breakdown:
 
 | bytecode |  opcode |                  description                  |
 |----------|---------|-----------------------------------------------|
@@ -35,10 +29,14 @@ ADD        -> [            ] -> 0x01 + 0x01
            -> [ 0x02       ]
 ```
 
-## How to run
+Run this test case with `cargo test test_eval_add`.
+
+To run the test on the bytecode `0x6002600202` (or `2 * 2`), run `cargo test test_eval_mul`.
+
+## How to use as a library
 
 ```rust
-use stack::*;
+use crate::evm::{lex_bytecode, eval_opcode};
 
 fn main() {
     let result = lex_bytecode("0x6001600101").unwrap();
