@@ -16,15 +16,19 @@ impl Stack {
         Stack(Vec::<u8>::new())
     }
 
-    pub fn push(&mut self, val: u8) {
+    pub fn push(&mut self, val: u8) -> Result<(), String> {
+        if self.size() == 32 {
+            return Err("Stack reached 32-byte limit".to_string());
+        }
         self.0.push(val);
+        Ok(())
     }
 
     pub fn pop(&mut self) -> (Option<u8>, &Self) {
         (self.0.pop(), self)
     }
 
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.0.len()
     }
 }
@@ -41,28 +45,32 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
         match code {
             Opcode::PUSH1 => {
                 if let Some(Opcode(n)) = opcodes.next() {
-                    stack.push(n);
+                    if let Err(e) = stack.push(n) {
+                        panic!("{}", e);
+                    }
                 }
             }
             Opcode::DUP2 => {
-                if stack.len() < 2 {
+                if stack.size() < 2 {
                     panic!(
                         "Expect stack to have at least two elements. Instead found {}",
-                        stack.len()
+                        stack.size()
                     );
                 }
-                if let Some(el) = stack.get(stack.len() - 2) {
-                    stack.push(*el);
+                if let Some(el) = stack.get(stack.size() - 2) {
+                    if let Err(e) = stack.push(*el) {
+                        panic!("{}", e);
+                    }
                 }
             }
             Opcode::POP => {
                 stack.pop();
             }
             Opcode::SSTORE => {
-                if stack.len() < 2 {
+                if stack.size() < 2 {
                     panic!(
                         "Expect stack to have at least two elements. Instead found {}",
-                        stack.len()
+                        stack.size()
                     );
                 }
                 if let (Some(first), _) = stack.pop() {
@@ -72,17 +80,18 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
                 }
             }
             Opcode::SWAP1 => {
-                if stack.len() < 2 {
+                if stack.size() < 2 {
                     panic!(
                         "Expect stack to have at least two elements. Instead found {}",
-                        stack.len()
+                        stack.size()
                     );
                 }
 
                 if let (Some(first), _) = stack.pop() {
                     if let (Some(second), _) = stack.pop() {
-                        stack.push(first);
-                        stack.push(second);
+                        if let (Err(e1), Err(_)) = (stack.push(first), stack.push(second)) {
+                            panic!("{}", e1);
+                        }
                     }
                 }
             }
@@ -90,13 +99,18 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
                 while let (Some(v), _) = stack.pop() {
                     sum += v;
                 }
-                stack.push(sum);
+                if let Err(e) = stack.push(sum) {
+                    panic!("{}", e);
+                }
             }
             Opcode::MUL => {
                 while let (Some(v), _) = stack.pop() {
                     prod *= v;
                 }
-                stack.push(prod);
+
+                if let Err(e) = stack.push(prod) {
+                    panic!("{}", e);
+                }
             }
             _ => todo!(),
         }
@@ -151,14 +165,33 @@ mod tests {
     #[test]
     fn test_stack() {
         let mut s = Stack::new();
-        s.push(0x01);
-        s.push(0x02);
-        s.push(0x03);
+        let _ = s.push(0x01);
+        let _ = s.push(0x02);
+        let _ = s.push(0x03);
         assert_eq!(s, Stack(vec![0x01, 0x02, 0x03]));
 
         let (hd, tl) = s.pop();
         assert_eq!(hd.unwrap(), 0x03);
         assert_eq!(*tl, Stack(vec![0x01, 0x02]));
+    }
+
+    #[test]
+    fn test_test_stack_overflow() {
+        let mut s = Stack::new();
+        for _ in 0..=32 {
+            let _ = s.push(0x60);
+        }
+
+        let (_, _) = s.pop();
+        assert_eq!(s.size(), 31);
+        let _ = s.push(0x02);
+        assert_eq!(s.size(), 32);
+
+        if let Err(_) = s.push(0x03) {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
     }
 
     #[test]
