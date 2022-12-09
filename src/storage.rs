@@ -1,18 +1,19 @@
 use std::collections::HashMap;
+use crate::types::UInt256;
 
 #[derive(PartialEq, Debug)]
-pub struct Storage(HashMap<u8, u8>);
+pub struct Storage(HashMap<UInt256, UInt256>);
 
 impl Storage {
     pub fn new() -> Self {
         Storage(HashMap::new())
     }
 
-    pub fn insert(&mut self, k: u8, v: u8) {
+    pub fn insert(&mut self, k: UInt256, v: UInt256) {
         self.0.insert(k, v);
     }
 
-    pub fn get(&self, k: u8) -> Option<&u8> {
+    pub fn get(&self, k: UInt256) -> Option<&UInt256> {
         self.0.get(&k)
     }
 }
@@ -23,11 +24,9 @@ mod tests {
     #[test]
     fn test_storage() {
         let mut storage = Storage::new();
-        storage.insert(0x00, 0x01);
-        storage.insert(0x01, 0x02);
-        storage.insert(0x02, 0x03);
-        assert_eq!(storage.get(0x00), Some(&0x01));
-        assert_eq!(storage.get(0x01), Some(&0x02));
-        assert_eq!(storage.get(0x02), Some(&0x03));
+        let k = UInt256::from_little_endian(&[0x00]);
+        let v = UInt256::from_little_endian(&[0x01]);
+        storage.insert(k, v);
+        assert_eq!(storage.get(k), Some(&v));
     }
 }

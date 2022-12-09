@@ -1,4 +1,5 @@
 use std::num::ParseIntError;
+use crate::types::UInt256;
 
 use crate::{opcode::Opcode, storage::Storage};
 
@@ -34,7 +35,7 @@ impl Stack {
 }
 
 /// Evaluate a vector of opcodes and return the stack.
-pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
+pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
     let mut stack = Stack::new();
     let mut storage = Storage::new();
     let mut sum = 0x00;
@@ -75,7 +76,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
                 }
                 if let (Some(first), _) = stack.pop() {
                     if let (Some(second), _) = stack.pop() {
-                        storage.insert(first, second);
+                        let k = UInt256::from_little_endian(&[first]);
+                        let v = UInt256::from_little_endian(&[second]);
+                        storage.insert(k, v);
                     }
                 }
             }
@@ -115,7 +118,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> Stack {
             _ => todo!(),
         }
     }
-    stack
+    (stack, storage)
 }
 
 /// Lex the bytecode, byte by byte, and return a vector of opcodes.
@@ -247,7 +250,7 @@ mod tests {
     fn test_eval_add() {
         let result = lex_bytecode("0x6001600101").unwrap();
         println!("{:?}", result);
-        let mut stack = eval_opcode(result);
+        let (mut stack, _) = eval_opcode(result);
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), 0x02);
         assert_eq!(*tl, Stack::EMPTY);
@@ -259,7 +262,7 @@ mod tests {
         let result = lex_bytecode("0x6002600202").unwrap();
         println!("{:?}", result);
 
-        let mut stack = eval_opcode(result);
+        let (mut stack, _) = eval_opcode(result);
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), 0x04);
         assert_eq!(*tl, Stack::EMPTY);
@@ -268,8 +271,10 @@ mod tests {
     #[test]
     fn test_eval_2() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
-        let mut stack = eval_opcode(result);
+        let (mut stack, storage) = eval_opcode(result);
         let (hd, _) = stack.pop();
         assert!(hd.is_none());
+        let val = storage.get(UInt256::from_little_endian(&[0x00])).unwrap();
+        assert_eq!(*val, UInt256::from_little_endian(&[0x01]));
     }
 }
