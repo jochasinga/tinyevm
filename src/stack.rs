@@ -228,7 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_bytecode_2() {
+    fn test_lex_bytecode_push1_dup2_swap1_sstore_pop() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
         assert_eq!(
             result,
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_2() {
+    fn test_eval_push1_dup2_swap1_sstore_pop() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
         let (mut stack, storage) = eval_opcode(result);
         let (hd, _) = stack.pop();

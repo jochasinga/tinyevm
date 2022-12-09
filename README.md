@@ -31,7 +31,9 @@ ADD        -> [            ] -> 0x01 + 0x01
 
 Run this test case with `cargo test test_eval_add`.
 
-To run the test on the bytecode `0x6002600202` (or `2 * 2`), run `cargo test test_eval_mul`.
+To run the test on the bytecode `0x6002600202` (5 bytes) or `2 * 2`, run `cargo test test_eval_mul`.
+
+To run test on the bytecode `0x6001600081905550` (8 bytes), run `cargo test test_eval_push1_dup2_swap1_sstore_pop`
 
 ## How to use as a library
 
@@ -40,7 +42,7 @@ use crate::evm::{lex_bytecode, eval_opcode};
 
 fn main() {
     let result = lex_bytecode("0x6001600101").unwrap();
-    let mut stack = eval_opcode(result);
+    let (mut stack, _storage) = eval_opcode(result);
     let (hd, tl) = stack.pop();
     assert_eq!(hd.unwrap(), 0x02);
     assert_eq!(*tl, Stack::EMPTY);
