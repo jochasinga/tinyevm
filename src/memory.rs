@@ -2,19 +2,19 @@ use std::u8;
 
 use crate::types::UInt256;
 
-/// TODO: What is the limit of memory?
-struct Memory([u8; 32]);
+/// TODO: What is the limit of memory? Put 128 for now.
+pub struct Memory([u8; 128]);
 
 impl Memory {
     pub fn new() -> Self {
-        Memory([0x00; 32])
+        Memory([0x00; 128])
     }
 
     /// Public interface to MLOAD.
     /// Reads a uint256 from memory.
     pub fn load(self, offset: usize) -> UInt256 {
         let mut bytes = [0x00; 32];
-        for (i, byte) in self.0.iter().enumerate() {
+        for (i, byte) in self.0[offset..offset + 32].iter().enumerate() {
             bytes[i] = *byte;
         }
         UInt256::from_little_endian(&bytes)

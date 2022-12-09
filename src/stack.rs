@@ -1,7 +1,7 @@
 use crate::types::UInt256;
 use std::num::ParseIntError;
 
-use crate::{opcode::Opcode, storage::Storage};
+use crate::{memory::Memory, opcode::Opcode, storage::Storage};
 
 #[derive(PartialEq, Debug)]
 pub struct Stack(Vec<UInt256>);
@@ -41,9 +41,10 @@ impl Stack {
 }
 
 /// Evaluate a vector of opcodes and return the stack.
-pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
+pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
     let mut stack = Stack::new();
     let mut storage = Storage::new();
+    let mut memory = Memory::new();
     let mut opcodes = opcode.into_iter();
 
     while let Some(code) = opcodes.next() {
@@ -105,6 +106,19 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
             }
             Opcode::POP => {
                 stack.pop();
+            }
+            Opcode::MSTORE => {
+                if stack.size() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
+                }
+                if let (Some(last), _) = stack.pop() {
+                    if let (Some(second_last), _) = stack.pop() {
+                        memory.store(last.as_usize(), second_last);
+                    }
+                }
             }
             Opcode::SSTORE => {
                 if stack.size() < 2 {
@@ -198,7 +212,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
             _ => todo!(),
         }
     }
-    (stack, storage)
+    (stack, storage, memory)
 }
 
 /// Lex the bytecode, byte by byte, and return a vector of opcodes.
@@ -342,6 +356,21 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_bytecode_mstore() {
+        let result = lex_bytecode("0x6060604052").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH1,
+                Opcode(0x60),
+                Opcode::PUSH1,
+                Opcode(0x40),
+                Opcode::MSTORE,
+            ],
+        );
+    }
+
+    #[test]
     fn test_lex_bytecode_push1_dup2_swap1_sstore_pop() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
         assert_eq!(
@@ -362,7 +391,7 @@ mod tests {
     /// Basically testing 1 + 1 = 2.
     #[test]
     fn test_eval_add() {
-        let (mut stack, _) = eval_opcode(lex_bytecode("0x6001600101").unwrap());
+        let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6001600101").unwrap());
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
@@ -371,7 +400,7 @@ mod tests {
     /// Basically testing 2 * 2 = 4.
     #[test]
     fn test_eval_mul() {
-        let (mut stack, _) = eval_opcode(lex_bytecode("0x6002600202").unwrap());
+        let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6002600202").unwrap());
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x04]));
         assert_eq!(*tl, Stack::EMPTY);
@@ -379,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_eval_sub() {
-        let (mut stack, _) = eval_opcode(lex_bytecode("0x6001600203").unwrap());
+        let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6001600203").unwrap());
         let (last, rest) = stack.pop();
         assert_eq!(last.unwrap(), UInt256::from_little_endian(&[0x01]));
         assert_eq!(*rest, Stack::EMPTY);
@@ -388,7 +417,7 @@ mod tests {
     #[test]
     fn test_eval_iszero() {
         let result = lex_bytecode("0x600015").unwrap();
-        let (mut stack, _) = eval_opcode(result);
+        let (mut stack, _, _) = eval_opcode(result);
         let (hd, tl) = stack.pop();
 
         // We should end up with 0x01 on the stack for "true".
@@ -397,9 +426,21 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_mstore() {
+        let result = lex_bytecode("0x6060604052").unwrap();
+        let (mut stack, _, memory) = eval_opcode(result);
+        let (hd, _) = stack.pop();
+        assert!(hd.is_none());
+        let value: UInt256 = memory.load(0x40_usize);
+        let mut bytes = [0x00; 32];
+        value.to_little_endian(&mut bytes);
+        assert_eq!(bytes[0], 0x60);
+    }
+
+    #[test]
     fn test_eval_push1_dup2_swap1_sstore_pop() {
         let result = lex_bytecode("0x6001600081905550").unwrap();
-        let (mut stack, storage) = eval_opcode(result);
+        let (mut stack, storage, _) = eval_opcode(result);
         let (hd, _) = stack.pop();
         assert!(hd.is_none());
         let val = storage.load(UInt256::from_little_endian(&[0x00]));

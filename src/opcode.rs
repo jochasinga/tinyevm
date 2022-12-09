@@ -9,6 +9,7 @@ impl Opcode {
     pub const SUB: Opcode = Opcode(0x03);
     pub const ISZERO: Opcode = Opcode(0x15);
     pub const POP: Opcode = Opcode(0x50);
+    pub const MSTORE: Opcode = Opcode(0x52);
     pub const SSTORE: Opcode = Opcode(0x55);
     pub const PUSH1: Opcode = Opcode(0x60);
     pub const DUP1: Opcode = Opcode(0x80);
@@ -39,6 +40,7 @@ impl FromStr for Opcode {
                 0x03 => Ok(Self::SUB),
                 0x15 => Ok(Self::ISZERO),
                 0x50 => Ok(Self::POP),
+                0x52 => Ok(Self::MSTORE),
                 0x55 => Ok(Self::SSTORE),
                 0x60 => Ok(Self::PUSH1),
                 0x80 => Ok(Self::DUP1),
@@ -52,6 +54,7 @@ impl FromStr for Opcode {
                 "SUB" => Ok(Self::SUB),
                 "ISZERO" => Ok(Self::ISZERO),
                 "POP" => Ok(Self::POP),
+                "MSTORE" => Ok(Self::MSTORE),
                 "SSTORE" => Ok(Self::SSTORE),
                 "PUSH1" => Ok(Self::PUSH1),
                 "DUP1" => Ok(Self::DUP1),
