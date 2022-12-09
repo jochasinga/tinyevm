@@ -144,25 +144,39 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                 }
             }
             Opcode::ADD => {
-                while let (Some(v), _) = stack.pop() {
-                    sum += v;
+                if stack.size() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
                 }
-
-                let mut bytes = [0x00; 32];
-                sum.to_little_endian(&mut bytes);
-                if let Err(e) = stack.push1(bytes[0]) {
-                    panic!("{}", e);
+                if let (Some(last), _) = stack.pop() {
+                    if let (Some(second_last), _) = stack.pop() {
+                        let sum = last + second_last;
+                        let mut bytes = [0x00; 32];
+                        sum.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push1(bytes[0]) {
+                            panic!("{}", e);
+                        }
+                    }
                 }
             }
             Opcode::MUL => {
-                while let (Some(v), _) = stack.pop() {
-                    prod *= v;
+                if stack.size() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
                 }
-
-                let mut bytes = [0x00; 32];
-                prod.to_little_endian(&mut bytes);
-                if let Err(e) = stack.push1(bytes[0]) {
-                    panic!("{}", e);
+                if let (Some(last), _) = stack.pop() {
+                    if let (Some(second_last), _) = stack.pop() {
+                        let prod = last * second_last;
+                        let mut bytes = [0x00; 32];
+                        prod.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push1(bytes[0]) {
+                            panic!("{}", e);
+                        }
+                    }
                 }
             }
             _ => todo!(),
