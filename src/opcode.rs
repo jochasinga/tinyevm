@@ -6,11 +6,12 @@ pub struct Opcode(pub u8);
 impl Opcode {
     pub const ADD: Opcode = Opcode(0x01);
     pub const MUL: Opcode = Opcode(0x02);
-    pub const PUSH1: Opcode = Opcode(0x60);
-    pub const DUP2: Opcode = Opcode(0x81);
-    pub const SWAP1: Opcode = Opcode(0x90);
     pub const POP: Opcode = Opcode(0x50);
     pub const SSTORE: Opcode = Opcode(0x55);
+    pub const PUSH1: Opcode = Opcode(0x60);
+    pub const DUP1: Opcode = Opcode(0x80);
+    pub const DUP2: Opcode = Opcode(0x81);
+    pub const SWAP1: Opcode = Opcode(0x90);
 }
 
 impl FromStr for Opcode {

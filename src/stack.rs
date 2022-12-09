@@ -4,28 +4,30 @@ use std::num::ParseIntError;
 use crate::{opcode::Opcode, storage::Storage};
 
 #[derive(PartialEq, Debug)]
-pub struct Stack(Vec<u8>);
+pub struct Stack(Vec<UInt256>);
 
 impl Stack {
     pub const EMPTY: Stack = Stack(vec![]);
 
-    pub fn get(&self, i: usize) -> Option<&u8> {
+    pub fn get(&self, i: usize) -> Option<&UInt256> {
         self.0.get(i)
     }
 
     pub fn new() -> Self {
-        Stack(Vec::<u8>::new())
+        Stack(Vec::<UInt256>::new())
     }
 
-    pub fn push(&mut self, val: u8) -> Result<(), String> {
-        if self.size() == 32 {
-            return Err("Stack reached 32-byte limit".to_string());
+    pub fn push1(&mut self, val: u8) -> Result<(), String> {
+        if self.size() == 1024 {
+            return Err("Stack overflow".to_string());
         }
-        self.0.push(val);
+
+        let v = UInt256::from_little_endian(&[val]);
+        self.0.push(v);
         Ok(())
     }
 
-    pub fn pop(&mut self) -> (Option<u8>, &Self) {
+    pub fn pop(&mut self) -> (Option<UInt256>, &Self) {
         (self.0.pop(), self)
     }
 
@@ -38,15 +40,32 @@ impl Stack {
 pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
     let mut stack = Stack::new();
     let mut storage = Storage::new();
-    let mut sum = 0x00;
-    let mut prod = 0x01;
+    let mut sum = UInt256::zero();
+    let mut prod = UInt256::one();
     let mut opcodes = opcode.into_iter();
 
     while let Some(code) = opcodes.next() {
         match code {
             Opcode::PUSH1 => {
                 if let Some(Opcode(n)) = opcodes.next() {
-                    if let Err(e) = stack.push(n) {
+                    if let Err(e) = stack.push1(n) {
+                        panic!("{}", e);
+                    }
+                }
+            }
+            Opcode::DUP1 => {
+                if stack.size() < 1 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
+                }
+
+                // Get the last element of the stack and push it back on top
+                if let Some(el) = stack.get(stack.size() - 1) {
+                    let mut bytes = [0x00; 32];
+                    el.to_little_endian(&mut bytes);
+                    if let Err(e) = stack.push1(bytes[0]) {
                         panic!("{}", e);
                     }
                 }
@@ -58,8 +77,12 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                         stack.size()
                     );
                 }
+
+                // Get the 2nd last element of the stack and push it back on top
                 if let Some(el) = stack.get(stack.size() - 2) {
-                    if let Err(e) = stack.push(*el) {
+                    let mut bytes = [0x00; 32];
+                    el.to_little_endian(&mut bytes);
+                    if let Err(e) = stack.push1(bytes[0]) {
                         panic!("{}", e);
                     }
                 }
@@ -76,9 +99,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                 }
                 if let (Some(first), _) = stack.pop() {
                     if let (Some(second), _) = stack.pop() {
-                        let k = UInt256::from_little_endian(&[first]);
-                        let v = UInt256::from_little_endian(&[second]);
-                        storage.store(k, v);
+                        storage.store(first, second);
                     }
                 }
             }
@@ -92,7 +113,13 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
 
                 if let (Some(first), _) = stack.pop() {
                     if let (Some(second), _) = stack.pop() {
-                        if let (Err(e1), Err(_)) = (stack.push(first), stack.push(second)) {
+                        let mut first_bytes = [0x00; 32];
+                        let mut second_bytes = [0x00; 32];
+                        first.to_little_endian(&mut first_bytes);
+                        second.to_little_endian(&mut second_bytes);
+                        if let (Err(e1), Err(_)) =
+                            (stack.push1(first_bytes[0]), stack.push1(second_bytes[0]))
+                        {
                             panic!("{}", e1);
                         }
                     }
@@ -102,7 +129,10 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                 while let (Some(v), _) = stack.pop() {
                     sum += v;
                 }
-                if let Err(e) = stack.push(sum) {
+
+                let mut bytes = [0x00; 32];
+                sum.to_little_endian(&mut bytes);
+                if let Err(e) = stack.push1(bytes[0]) {
                     panic!("{}", e);
                 }
             }
@@ -111,7 +141,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                     prod *= v;
                 }
 
-                if let Err(e) = stack.push(prod) {
+                let mut bytes = [0x00; 32];
+                prod.to_little_endian(&mut bytes);
+                if let Err(e) = stack.push1(bytes[0]) {
                     panic!("{}", e);
                 }
             }
@@ -168,29 +200,42 @@ mod tests {
     #[test]
     fn test_stack() {
         let mut s = Stack::new();
-        let _ = s.push(0x01);
-        let _ = s.push(0x02);
-        let _ = s.push(0x03);
-        assert_eq!(s, Stack(vec![0x01, 0x02, 0x03]));
+        let _ = s.push1(0x01);
+        let _ = s.push1(0x02);
+        let _ = s.push1(0x03);
+        assert_eq!(
+            s,
+            Stack(vec![
+                UInt256::from_little_endian(&[0x01]),
+                UInt256::from_little_endian(&[0x02]),
+                UInt256::from_little_endian(&[0x03]),
+            ])
+        );
 
         let (hd, tl) = s.pop();
-        assert_eq!(hd.unwrap(), 0x03);
-        assert_eq!(*tl, Stack(vec![0x01, 0x02]));
+        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x03]));
+        assert_eq!(
+            *tl,
+            Stack(vec![
+                UInt256::from_little_endian(&[0x01]),
+                UInt256::from_little_endian(&[0x02]),
+            ])
+        );
     }
 
     #[test]
     fn test_test_stack_overflow() {
         let mut s = Stack::new();
-        for _ in 0..=32 {
-            let _ = s.push(0x60);
+        for _ in 0..=1024 {
+            let _ = s.push1(0x60);
         }
 
         let (_, _) = s.pop();
-        assert_eq!(s.size(), 31);
-        let _ = s.push(0x02);
-        assert_eq!(s.size(), 32);
+        assert_eq!(s.size(), 1023);
+        let _ = s.push1(0x02);
+        assert_eq!(s.size(), 1024);
 
-        if let Err(_) = s.push(0x03) {
+        if let Err(_) = s.push1(0x03) {
             assert!(true);
         } else {
             assert!(false);
@@ -252,7 +297,7 @@ mod tests {
         println!("{:?}", result);
         let (mut stack, _) = eval_opcode(result);
         let (hd, tl) = stack.pop();
-        assert_eq!(hd.unwrap(), 0x02);
+        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
     }
 
@@ -264,7 +309,7 @@ mod tests {
 
         let (mut stack, _) = eval_opcode(result);
         let (hd, tl) = stack.pop();
-        assert_eq!(hd.unwrap(), 0x04);
+        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x04]));
         assert_eq!(*tl, Stack::EMPTY);
     }
 
