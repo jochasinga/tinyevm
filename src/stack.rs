@@ -1,5 +1,5 @@
-use std::num::ParseIntError;
 use crate::types::UInt256;
+use std::num::ParseIntError;
 
 use crate::{opcode::Opcode, storage::Storage};
 
@@ -78,7 +78,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage) {
                     if let (Some(second), _) = stack.pop() {
                         let k = UInt256::from_little_endian(&[first]);
                         let v = UInt256::from_little_endian(&[second]);
-                        storage.insert(k, v);
+                        storage.store(k, v);
                     }
                 }
             }
@@ -274,7 +274,7 @@ mod tests {
         let (mut stack, storage) = eval_opcode(result);
         let (hd, _) = stack.pop();
         assert!(hd.is_none());
-        let val = storage.get(UInt256::from_little_endian(&[0x00])).unwrap();
+        let val = storage.load(UInt256::from_little_endian(&[0x00]));
         assert_eq!(*val, UInt256::from_little_endian(&[0x01]));
     }
 }

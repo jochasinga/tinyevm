@@ -75,7 +75,5 @@ mod tests {
         assert_eq!(swap1, Opcode::SWAP1);
         let swap1 = "90".parse::<Opcode>().unwrap();
         assert_eq!(swap1, Opcode::SWAP1);
-
-
     }
 }
