@@ -34,6 +34,16 @@ impl Opcode {
                 opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
                 opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
             }
+            if s == "PUSH3" {
+                let mut b = it.next().unwrap();
+                b = b.trim_start_matches("0x");
+                let b1 = b[0..2].to_string();
+                let b2 = b[2..4].to_string();
+                let b3 = b[4..6].to_string();
+                opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
+                opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
+                opcodes.push(format!("0x{}", b3).parse::<Opcode>().unwrap());
+            }
         }
         opcodes
     }
@@ -104,6 +114,17 @@ mod tests {
         assert_eq!(opcodes[3], Opcode(0x40));
         assert_eq!(opcodes[4], Opcode(0x50));
         assert_eq!(opcodes[5], Opcode::ISZERO);
+
+        let opcodes = Opcode::from_file("tests/Example3.opcode");
+        assert_eq!(opcodes.len(), 8);
+        assert_eq!(opcodes[0], Opcode::PUSH3);
+        assert_eq!(opcodes[1], Opcode(0x80));
+        assert_eq!(opcodes[2], Opcode(0x30));
+        assert_eq!(opcodes[3], Opcode(0xff));
+        assert_eq!(opcodes[4], Opcode::PUSH2);
+        assert_eq!(opcodes[5], Opcode(0x40));
+        assert_eq!(opcodes[6], Opcode(0x50));
+        assert_eq!(opcodes[7], Opcode::ISZERO);
     }
 
     #[test]
