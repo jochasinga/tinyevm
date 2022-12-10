@@ -65,6 +65,20 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                     }
                 }
             }
+            Opcode::PUSH3 => {
+                if let (Some(Opcode(a)), Some(Opcode(b)), Some(Opcode(c))) =
+                    (opcodes.next(), opcodes.next(), opcodes.next())
+                {
+                    let a = format!(
+                        "0x{}",
+                        format!("{:02x}", a) + &format!("{:02x}", b) + &format!("{:02x}", c)
+                    );
+                    let res = UInt256::from_str_radix(&a, 16).unwrap();
+                    if let Err(e) = stack.push(res) {
+                        panic!("{}", e);
+                    }
+                }
+            }
             Opcode::ISZERO => {
                 if let Some(top) = stack.top() {
                     if top.is_zero() {
@@ -270,6 +284,36 @@ pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
                     }
                 }
             }
+            Opcode::PUSH3 => {
+                tokens.push(Opcode::PUSH3);
+                if let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+                    let s = format!("0x{}{}", c1, c2);
+                    let result = s.parse::<Opcode>();
+                    if let Err(e) = result {
+                        return Err(e);
+                    } else {
+                        tokens.push(result.unwrap());
+                    }
+                }
+                if let (Some(c3), Some(c4)) = (chars.next(), chars.next()) {
+                    let s = format!("0x{}{}", c3, c4);
+                    let result = s.parse::<Opcode>();
+                    if let Err(e) = result {
+                        return Err(e);
+                    } else {
+                        tokens.push(result.unwrap());
+                    }
+                }
+                if let (Some(c5), Some(c6)) = (chars.next(), chars.next()) {
+                    let s = format!("0x{}{}", c5, c6);
+                    let result = s.parse::<Opcode>();
+                    if let Err(e) = result {
+                        return Err(e);
+                    } else {
+                        tokens.push(result.unwrap());
+                    }
+                }
+            }
             Opcode::ADD => tokens.push(Opcode::ADD),
             Opcode::MUL => tokens.push(Opcode::MUL),
             Opcode::DUP2 => tokens.push(Opcode::DUP2),
@@ -364,6 +408,24 @@ mod tests {
     }
 
     #[test]
+    fn test_lex_bytecode_push3() {
+        let result = lex_bytecode("0x6101006201302f01").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH2,
+                Opcode(0x01),
+                Opcode(0x00),
+                Opcode::PUSH3,
+                Opcode(0x01),
+                Opcode(0x30),
+                Opcode(0x2f),
+                Opcode::ADD,
+            ],
+        );
+    }
+
+    #[test]
     fn test_lex_bytecode_mul() {
         let result = lex_bytecode("0x6002600202").unwrap();
         assert_eq!(
@@ -449,6 +511,20 @@ mod tests {
         assert_eq!(
             last.unwrap(),
             UInt256::from_str_radix("0x0101", 16).unwrap()
+        );
+        assert_eq!(*rest, Stack::EMPTY);
+    }
+
+    #[test]
+    fn test_eval_push3() {
+        let opcodes = lex_bytecode("0x6101006201302f01").unwrap();
+        let (mut stack, _, _) = eval_opcode(opcodes);
+        let (last, rest) = stack.pop();
+        // 0x01302f + 0x0100
+        let expected = &format!("{:x}", 77871 + 256);
+        assert_eq!(
+            last.unwrap(),
+            UInt256::from_str_radix(expected, 16).unwrap()
         );
         assert_eq!(*rest, Stack::EMPTY);
     }

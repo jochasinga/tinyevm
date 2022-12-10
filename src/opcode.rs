@@ -13,6 +13,7 @@ impl Opcode {
     pub const SSTORE: Opcode = Opcode(0x55);
     pub const PUSH1: Opcode = Opcode(0x60);
     pub const PUSH2: Opcode = Opcode(0x61);
+    pub const PUSH3: Opcode = Opcode(0x62);
     pub const DUP1: Opcode = Opcode(0x80);
     pub const DUP2: Opcode = Opcode(0x81);
     pub const SWAP1: Opcode = Opcode(0x90);
@@ -44,6 +45,8 @@ impl FromStr for Opcode {
                 0x52 => Ok(Self::MSTORE),
                 0x55 => Ok(Self::SSTORE),
                 0x60 => Ok(Self::PUSH1),
+                0x61 => Ok(Self::PUSH2),
+                0x63 => Ok(Self::PUSH3),
                 0x80 => Ok(Self::DUP1),
                 0x81 => Ok(Self::DUP2),
                 0x90 => Ok(Self::SWAP1),
@@ -58,6 +61,8 @@ impl FromStr for Opcode {
                 "MSTORE" => Ok(Self::MSTORE),
                 "SSTORE" => Ok(Self::SSTORE),
                 "PUSH1" => Ok(Self::PUSH1),
+                "PUSH2" => Ok(Self::PUSH2),
+                "PUSH3" => Ok(Self::PUSH3),
                 "DUP1" => Ok(Self::DUP1),
                 "DUP2" => Ok(Self::DUP2),
                 "SWAP1" => Ok(Self::SWAP1),
@@ -133,6 +138,20 @@ mod tests {
         assert_eq!(push1, Opcode::PUSH1);
         push1 = "PUSH1".parse::<Opcode>().unwrap();
         assert_eq!(push1, Opcode::PUSH1);
+
+        let mut push2 = "0x61".parse::<Opcode>().unwrap();
+        assert_eq!(push2, Opcode::PUSH2);
+        push2 = "61".parse::<Opcode>().unwrap();
+        assert_eq!(push2, Opcode::PUSH2);
+        push2 = "PUSH2".parse::<Opcode>().unwrap();
+        assert_eq!(push2, Opcode::PUSH2);
+
+        let mut push3 = "0x62".parse::<Opcode>().unwrap();
+        assert_eq!(push3, Opcode::PUSH3);
+        push3 = "62".parse::<Opcode>().unwrap();
+        assert_eq!(push3, Opcode::PUSH3);
+        push3 = "PUSH3".parse::<Opcode>().unwrap();
+        assert_eq!(push3, Opcode::PUSH3);
 
         let mut dup1 = "0x80".parse::<Opcode>().unwrap();
         assert_eq!(dup1, Opcode::DUP1);

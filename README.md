@@ -1,10 +1,10 @@
-# toy-evm
+# tiny-evm
 
 A toy stack machine to play around with Ethereum bytecode.
 
 ## How it works 
 
-**toy-evm** is a little stack machine that parses a limited set of Ethereum bytecode, convert them to the corresponding opcodes, and use a stack to do some computations.
+**tiny-evm** is a little stack machine that parses a limited set of Ethereum bytecode, convert them to the corresponding opcodes, and use a stack to do some computations.
 
 The stack has a word size of 32 bytes (256-bit) and a limit of 1024 items.
 
@@ -48,6 +48,7 @@ To run test on the bytecode `0x6001600081905550` (8 bytes), run `cargo test test
 | SSTORE | 0x55     |
 | PUSH1  | 0x60     |
 | PUSH2  | 0x61     |
+| PUSH3  | 0x61     |
 | DUP1   | 0x80     |
 | DUP2   | 0x81     |
 | SWAP1  | 0x90     |
