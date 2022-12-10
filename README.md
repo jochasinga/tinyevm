@@ -47,6 +47,7 @@ To run test on the bytecode `0x6001600081905550` (8 bytes), run `cargo test test
 | MSTORE | 0x52     |
 | SSTORE | 0x55     |
 | PUSH1  | 0x60     |
+| PUSH2  | 0x61     |
 | DUP1   | 0x80     |
 | DUP2   | 0x81     |
 | SWAP1  | 0x90     |

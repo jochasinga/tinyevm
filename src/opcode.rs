@@ -12,6 +12,7 @@ impl Opcode {
     pub const MSTORE: Opcode = Opcode(0x52);
     pub const SSTORE: Opcode = Opcode(0x55);
     pub const PUSH1: Opcode = Opcode(0x60);
+    pub const PUSH2: Opcode = Opcode(0x61);
     pub const DUP1: Opcode = Opcode(0x80);
     pub const DUP2: Opcode = Opcode(0x81);
     pub const SWAP1: Opcode = Opcode(0x90);

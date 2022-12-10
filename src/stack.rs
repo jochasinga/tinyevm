@@ -21,13 +21,13 @@ impl Stack {
         Stack(Vec::<UInt256>::new())
     }
 
-    pub fn push1(&mut self, val: u8) -> Result<(), String> {
+    pub fn push(&mut self, val: UInt256) -> Result<(), String> {
         if self.size() == 1024 {
             return Err("Stack overflow".to_string());
         }
 
-        let v = UInt256::from_little_endian(&[val]);
-        self.0.push(v);
+        // let v = UInt256::from_little_endian(&[val]);
+        self.0.push(val);
         Ok(())
     }
 
@@ -51,7 +51,16 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
         match code {
             Opcode::PUSH1 => {
                 if let Some(Opcode(n)) = opcodes.next() {
-                    if let Err(e) = stack.push1(n) {
+                    if let Err(e) = stack.push(UInt256::from_little_endian(&[n])) {
+                        panic!("{}", e);
+                    }
+                }
+            }
+            Opcode::PUSH2 => {
+                if let (Some(Opcode(m)), Some(Opcode(n))) = (opcodes.next(), opcodes.next()) {
+                    let a = format!("0x{}", format!("{:02x}", m) + &format!("{:02x}", n));
+                    let res = UInt256::from_str_radix(&a, 16).unwrap();
+                    if let Err(e) = stack.push(res) {
                         panic!("{}", e);
                     }
                 }
@@ -59,9 +68,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
             Opcode::ISZERO => {
                 if let Some(top) = stack.top() {
                     if top.is_zero() {
-                        stack.push1(0x01).unwrap();
+                        stack.push(UInt256::from_little_endian(&[0x01])).unwrap();
                     } else {
-                        stack.push1(0x00).unwrap();
+                        stack.push(UInt256::from_little_endian(&[0x00])).unwrap();
                     }
                 } else {
                     panic!(
@@ -80,9 +89,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
 
                 // Get the last element of the stack and push it back on top
                 if let Some(el) = stack.get(stack.size() - 1) {
-                    let mut bytes = [0x00; 32];
-                    el.to_little_endian(&mut bytes);
-                    if let Err(e) = stack.push1(bytes[0]) {
+                    // let mut bytes = [0x00; 32];
+                    // el.to_little_endian(&mut bytes);
+                    if let Err(e) = stack.push(*el) {
                         panic!("{}", e);
                     }
                 }
@@ -97,9 +106,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
 
                 // Get the 2nd last element of the stack and push it back on top
                 if let Some(el) = stack.get(stack.size() - 2) {
-                    let mut bytes = [0x00; 32];
-                    el.to_little_endian(&mut bytes);
-                    if let Err(e) = stack.push1(bytes[0]) {
+                    // let mut bytes = [0x00; 32];
+                    // el.to_little_endian(&mut bytes);
+                    if let Err(e) = stack.push(*el) {
                         panic!("{}", e);
                     }
                 }
@@ -143,13 +152,11 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
 
                 if let (Some(first), _) = stack.pop() {
                     if let (Some(second), _) = stack.pop() {
-                        let mut first_bytes = [0x00; 32];
-                        let mut second_bytes = [0x00; 32];
-                        first.to_little_endian(&mut first_bytes);
-                        second.to_little_endian(&mut second_bytes);
-                        if let (Err(e1), Err(_)) =
-                            (stack.push1(first_bytes[0]), stack.push1(second_bytes[0]))
-                        {
+                        // let mut first_bytes = [0x00; 32];
+                        // let mut second_bytes = [0x00; 32];
+                        // first.to_little_endian(&mut first_bytes);
+                        // second.to_little_endian(&mut second_bytes);
+                        if let (Err(e1), Err(_)) = (stack.push(first), stack.push(second)) {
                             panic!("{}", e1);
                         }
                     }
@@ -165,9 +172,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
                         let sum = last + second_last;
-                        let mut bytes = [0x00; 32];
-                        sum.to_little_endian(&mut bytes);
-                        if let Err(e) = stack.push1(bytes[0]) {
+                        // let mut bytes = [0x00; 32];
+                        // sum.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push(sum) {
                             panic!("{}", e);
                         }
                     }
@@ -183,9 +190,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
                         let prod = last * second_last;
-                        let mut bytes = [0x00; 32];
-                        prod.to_little_endian(&mut bytes);
-                        if let Err(e) = stack.push1(bytes[0]) {
+                        // let mut bytes = [0x00; 32];
+                        // prod.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push(prod) {
                             panic!("{}", e);
                         }
                     }
@@ -200,10 +207,10 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                 }
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
-                        let prod = last - second_last;
-                        let mut bytes = [0x00; 32];
-                        prod.to_little_endian(&mut bytes);
-                        if let Err(e) = stack.push1(bytes[0]) {
+                        let diff = last - second_last;
+                        // let mut bytes = [0x00; 32];
+                        // diff.to_little_endian(&mut bytes);
+                        if let Err(e) = stack.push(diff) {
                             panic!("{}", e);
                         }
                     }
@@ -242,6 +249,27 @@ pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
                     }
                 }
             }
+            Opcode::PUSH2 => {
+                tokens.push(Opcode::PUSH2);
+                if let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+                    let s = format!("0x{}{}", c1, c2);
+                    let result = s.parse::<Opcode>();
+                    if let Err(e) = result {
+                        return Err(e);
+                    } else {
+                        tokens.push(result.unwrap());
+                    }
+                }
+                if let (Some(c3), Some(c4)) = (chars.next(), chars.next()) {
+                    let s = format!("0x{}{}", c3, c4);
+                    let result = s.parse::<Opcode>();
+                    if let Err(e) = result {
+                        return Err(e);
+                    } else {
+                        tokens.push(result.unwrap());
+                    }
+                }
+            }
             Opcode::ADD => tokens.push(Opcode::ADD),
             Opcode::MUL => tokens.push(Opcode::MUL),
             Opcode::DUP2 => tokens.push(Opcode::DUP2),
@@ -262,9 +290,9 @@ mod tests {
     #[test]
     fn test_stack() {
         let mut s = Stack::new();
-        let _ = s.push1(0x01);
-        let _ = s.push1(0x02);
-        let _ = s.push1(0x03);
+        let _ = s.push(0x01.into());
+        let _ = s.push(0x02.into());
+        let _ = s.push(0x03.into());
         assert_eq!(
             s,
             Stack(vec![
@@ -289,15 +317,15 @@ mod tests {
     fn test_test_stack_overflow() {
         let mut s = Stack::new();
         for _ in 0..=1024 {
-            let _ = s.push1(0x60);
+            let _ = s.push(0x60.into());
         }
 
         let (_, _) = s.pop();
         assert_eq!(s.size(), 1023);
-        let _ = s.push1(0x02);
+        let _ = s.push(0x02.into());
         assert_eq!(s.size(), 1024);
 
-        if let Err(_) = s.push1(0x03) {
+        if let Err(_) = s.push(0x03.into()) {
             assert!(true);
         } else {
             assert!(false);
@@ -312,6 +340,22 @@ mod tests {
             vec![
                 Opcode::PUSH1,
                 Opcode(0x01),
+                Opcode::PUSH1,
+                Opcode(0x01),
+                Opcode::ADD,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_lex_bytecode_push2() {
+        let result = lex_bytecode("0x610100600101").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH2,
+                Opcode(0x01),
+                Opcode(0x00),
                 Opcode::PUSH1,
                 Opcode(0x01),
                 Opcode::ADD,
@@ -395,6 +439,18 @@ mod tests {
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
+    }
+
+    #[test]
+    fn test_eval_push2() {
+        let opcodes = lex_bytecode("0x610100600101").unwrap();
+        let (mut stack, _, _) = eval_opcode(opcodes);
+        let (last, rest) = stack.pop();
+        assert_eq!(
+            last.unwrap(),
+            UInt256::from_str_radix("0x0101", 16).unwrap()
+        );
+        assert_eq!(*rest, Stack::EMPTY);
     }
 
     /// Basically testing 2 * 2 = 4.
