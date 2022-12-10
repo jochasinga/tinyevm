@@ -22,9 +22,18 @@ impl Opcode {
     pub fn from_file(filename: &str) -> Vec<Opcode> {
         let mut opcodes = Vec::new();
         let file = std::fs::read_to_string(filename).unwrap();
-        for split in file.split_whitespace() {
-            let opcode = split.parse::<Opcode>().unwrap();
+        let mut it = file.split_whitespace().into_iter();
+        while let Some(s) = it.next() {
+            let opcode = s.parse::<Opcode>().unwrap();
             opcodes.push(opcode);
+            if s == "PUSH2" {
+                let mut b = it.next().unwrap();
+                b = b.trim_start_matches("0x");
+                let b1 = b[0..2].to_string();
+                let b2 = b[2..4].to_string();
+                opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
+                opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
+            }
         }
         opcodes
     }
@@ -86,6 +95,15 @@ mod tests {
         assert_eq!(opcodes[2], Opcode::PUSH1);
         assert_eq!(opcodes[3], Opcode(0x40));
         assert_eq!(opcodes[4], Opcode::ISZERO);
+
+        let opcodes = Opcode::from_file("tests/Example2.opcode");
+        assert_eq!(opcodes.len(), 6);
+        assert_eq!(opcodes[0], Opcode::PUSH1);
+        assert_eq!(opcodes[1], Opcode(0x80));
+        assert_eq!(opcodes[2], Opcode::PUSH2);
+        assert_eq!(opcodes[3], Opcode(0x40));
+        assert_eq!(opcodes[4], Opcode(0x50));
+        assert_eq!(opcodes[5], Opcode::ISZERO);
     }
 
     #[test]
