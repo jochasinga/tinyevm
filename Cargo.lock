@@ -45,13 +45,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
-name = "evm"
-version = "0.1.0"
-dependencies = [
- "primitive-types",
-]
-
-[[package]]
 name = "fixed-hash"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -279,6 +272,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tinyevm"
+version = "0.1.0"
+dependencies = [
+ "primitive-types",
 ]
 
 [[package]]
