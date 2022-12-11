@@ -230,6 +230,22 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                     }
                 }
             }
+            Opcode::DIV => {
+                if stack.size() < 2 {
+                    panic!(
+                        "Expect stack to have at least two elements. Instead found {}",
+                        stack.size()
+                    );
+                }
+                if let (Some(last), _) = stack.pop() {
+                    if let (Some(second_last), _) = stack.pop() {
+                        let div = last / second_last;
+                        if let Err(e) = stack.push(div) {
+                            panic!("{}", e);
+                        }
+                    }
+                }
+            }
             _ => todo!(),
         }
     }
@@ -316,6 +332,8 @@ pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
             }
             Opcode::ADD => tokens.push(Opcode::ADD),
             Opcode::MUL => tokens.push(Opcode::MUL),
+            Opcode::SUB => tokens.push(Opcode::SUB),
+            Opcode::DIV => tokens.push(Opcode::DIV),
             Opcode::DUP2 => tokens.push(Opcode::DUP2),
             Opcode::POP => tokens.push(Opcode::POP),
             Opcode::SWAP1 => tokens.push(Opcode::SWAP1),
@@ -387,6 +405,21 @@ mod tests {
                 Opcode::PUSH1,
                 Opcode(0x01),
                 Opcode::ADD,
+            ],
+        );
+    }
+
+    #[test]
+    fn test_lex_bytecode_div() {
+        let result = lex_bytecode("0x6002600404").unwrap();
+        assert_eq!(
+            result,
+            vec![
+                Opcode::PUSH1,
+                Opcode(0x02),
+                Opcode::PUSH1,
+                Opcode(0x04),
+                Opcode::DIV,
             ],
         );
     }
@@ -501,6 +534,14 @@ mod tests {
         let (hd, tl) = stack.pop();
         assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
+    }
+
+    #[test]
+    fn test_eval_div() {
+        let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6002600404").unwrap());
+        let (last, rest) = stack.pop();
+        assert_eq!(last.unwrap(), UInt256::from_little_endian(&[0x02]));
+        assert_eq!(*rest, Stack::EMPTY);
     }
 
     #[test]

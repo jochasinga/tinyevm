@@ -7,6 +7,7 @@ impl Opcode {
     pub const ADD: Opcode = Opcode(0x01);
     pub const MUL: Opcode = Opcode(0x02);
     pub const SUB: Opcode = Opcode(0x03);
+    pub const DIV: Opcode = Opcode(0x04);
     pub const ISZERO: Opcode = Opcode(0x15);
     pub const POP: Opcode = Opcode(0x50);
     pub const MSTORE: Opcode = Opcode(0x52);
@@ -59,6 +60,7 @@ impl FromStr for Opcode {
                 0x01 => Ok(Self::ADD),
                 0x02 => Ok(Self::MUL),
                 0x03 => Ok(Self::SUB),
+                0x04 => Ok(Self::DIV),
                 0x15 => Ok(Self::ISZERO),
                 0x50 => Ok(Self::POP),
                 0x52 => Ok(Self::MSTORE),
@@ -75,6 +77,7 @@ impl FromStr for Opcode {
                 "ADD" => Ok(Self::ADD),
                 "MUL" => Ok(Self::MUL),
                 "SUB" => Ok(Self::SUB),
+                "DIV" => Ok(Self::DIV),
                 "ISZERO" => Ok(Self::ISZERO),
                 "POP" => Ok(Self::POP),
                 "MSTORE" => Ok(Self::MSTORE),
@@ -149,6 +152,13 @@ mod tests {
         assert_eq!(sub, Opcode::SUB);
         sub = "SUB".parse::<Opcode>().unwrap();
         assert_eq!(sub, Opcode::SUB);
+
+        let mut div = "0x04".parse::<Opcode>().unwrap();
+        assert_eq!(div, Opcode::DIV);
+        div = "04".parse::<Opcode>().unwrap();
+        assert_eq!(div, Opcode::DIV);
+        div = "DIV".parse::<Opcode>().unwrap();
+        assert_eq!(div, Opcode::DIV);
 
         let mut iszero = "0x15".parse::<Opcode>().unwrap();
         assert_eq!(iszero, Opcode::ISZERO);

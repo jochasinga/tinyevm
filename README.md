@@ -42,6 +42,7 @@ To run test on the bytecode `0x6001600081905550` (8 bytes), run `cargo test test
 | ADD    | 0x01     |
 | MUL    | 0x02     |
 | SUB    | 0x03     |
+| DIV    | 0x04     |
 | ISZERO | 0x15     |
 | POP    | 0x50     |
 | MSTORE | 0x52     |
