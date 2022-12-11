@@ -1,8 +1,8 @@
 # tinyevm
 
-A tiny stack machine to learn Ethereum bytecode.
+A tiny stack machine for learning Ethereum bytecode (WIP).
 
-**tinyevm** parses a Ethereum bytecode compiled from smart contract languages like Solidity, convert them to the series of opcodes, and use the stack to do computations.
+I created **TinyEVM** as a mean to learn about Ethereum Virtual Machine. TinyEVM parses a piece of Ethereum bytecode compiled from smart contract languages like Solidity, convert them to the a vector of opcodes, and use the stack to do computations.
 
 The stack has a word size of 32 bytes (256-bit) and a limit of 1024 items.
 
@@ -10,7 +10,7 @@ The stack has a word size of 32 bytes (256-bit) and a limit of 1024 items.
 
 ## `ADD`
 
-The following bytecode `0x6001600101` is equivalent to othe following:
+The following bytecode `0x6001600101` is equivalent to the following:
 
 | bytecode |  opcode |                  description                  |
 |----------|---------|-----------------------------------------------|
