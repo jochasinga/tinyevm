@@ -27,23 +27,24 @@ impl Opcode {
         while let Some(s) = it.next() {
             let opcode = s.parse::<Opcode>().unwrap();
             opcodes.push(opcode);
-            if s == "PUSH2" {
-                let mut b = it.next().unwrap();
-                b = b.trim_start_matches("0x");
-                let b1 = b[0..2].to_string();
-                let b2 = b[2..4].to_string();
-                opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
-                opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
-            }
-            if s == "PUSH3" {
-                let mut b = it.next().unwrap();
-                b = b.trim_start_matches("0x");
-                let b1 = b[0..2].to_string();
-                let b2 = b[2..4].to_string();
-                let b3 = b[4..6].to_string();
-                opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
-                opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
-                opcodes.push(format!("0x{}", b3).parse::<Opcode>().unwrap());
+            match s {
+                "PUSH2" => {
+                    let mut b = it.next().unwrap();
+                    b = b.trim_start_matches("0x");
+                    let (b1, b2) = (b[..2].to_string(), b[2..].to_string());
+                    opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
+                    opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
+                }
+                "PUSH3" => {
+                    let mut b = it.next().unwrap();
+                    b = b.trim_start_matches("0x");
+                    let (b1, b2, b3) =
+                        (b[..2].to_string(), b[2..4].to_string(), b[4..].to_string());
+                    opcodes.push(format!("0x{}", b1).parse::<Opcode>().unwrap());
+                    opcodes.push(format!("0x{}", b2).parse::<Opcode>().unwrap());
+                    opcodes.push(format!("0x{}", b3).parse::<Opcode>().unwrap());
+                }
+                _ => {}
             }
         }
         opcodes
