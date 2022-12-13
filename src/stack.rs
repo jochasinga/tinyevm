@@ -252,13 +252,15 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
     (stack, storage, memory)
 }
 
-/// Lex the bytecode, byte by byte, and return a vector of opcodes.
-pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
-    let input = bytecode.trim_start_matches("0x");
-    let mut chars = input.chars().into_iter();
-    let mut tokens = Vec::<Opcode>::new();
+fn scan_bytecode(
+    mut bytecodes: std::str::Chars,
+    mut opcodes: Vec<Opcode>,
+) -> Result<Vec<Opcode>, ParseIntError> {
+    if bytecodes.clone().count() == 0 {
+        return Ok(opcodes);
+    }
 
-    while let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+    if let (Some(c1), Some(c2)) = (bytecodes.next(), bytecodes.next()) {
         let hex = format!("0x{}{}", c1, c2);
         let result = hex.parse::<Opcode>();
         if let Err(e) = result {
@@ -268,80 +270,86 @@ pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
         let opcode = result.unwrap();
         match opcode {
             Opcode::PUSH1 => {
-                tokens.push(Opcode::PUSH1);
-                if let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
+                opcodes.push(Opcode::PUSH1);
+                if let (Some(c1), Some(c2)) = (bytecodes.next(), bytecodes.next()) {
                     let s = format!("0x{}{}", c1, c2);
                     let result = s.parse::<Opcode>();
                     if let Err(e) = result {
                         return Err(e);
                     } else {
-                        tokens.push(result.unwrap());
+                        opcodes.push(result.unwrap());
                     }
                 }
             }
             Opcode::PUSH2 => {
-                tokens.push(Opcode::PUSH2);
-                if let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
-                    let s = format!("0x{}{}", c1, c2);
-                    let result = s.parse::<Opcode>();
-                    if let Err(e) = result {
+                opcodes.push(Opcode::PUSH2);
+                if let (Some(c1), Some(c2), Some(c3), Some(c4)) = (
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                ) {
+                    let s1 = format!("0x{}{}", c1, c2);
+                    let result1 = s1.parse::<Opcode>();
+                    let s2 = format!("0x{}{}", c3, c4);
+                    let result2 = s2.parse::<Opcode>();
+                    if let (Err(e), Err(_)) = (result1.clone(), result2.clone()) {
                         return Err(e);
                     } else {
-                        tokens.push(result.unwrap());
-                    }
-                }
-                if let (Some(c3), Some(c4)) = (chars.next(), chars.next()) {
-                    let s = format!("0x{}{}", c3, c4);
-                    let result = s.parse::<Opcode>();
-                    if let Err(e) = result {
-                        return Err(e);
-                    } else {
-                        tokens.push(result.unwrap());
+                        opcodes.push(result1.unwrap());
+                        opcodes.push(result2.unwrap());
                     }
                 }
             }
             Opcode::PUSH3 => {
-                tokens.push(Opcode::PUSH3);
-                if let (Some(c1), Some(c2)) = (chars.next(), chars.next()) {
-                    let s = format!("0x{}{}", c1, c2);
-                    let result = s.parse::<Opcode>();
-                    if let Err(e) = result {
+                opcodes.push(Opcode::PUSH3);
+                if let (Some(c1), Some(c2), Some(c3), Some(c4), Some(c5), Some(c6)) = (
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                    bytecodes.next(),
+                ) {
+                    let s1 = format!("0x{}{}", c1, c2);
+                    let s2 = format!("0x{}{}", c3, c4);
+                    let s3 = format!("0x{}{}", c5, c6);
+                    let result1 = s1.parse::<Opcode>();
+                    let result2 = s2.parse::<Opcode>();
+                    let result3 = s3.parse::<Opcode>();
+                    if let (Err(e), Err(_), Err(_)) =
+                        (result1.clone(), result2.clone(), result3.clone())
+                    {
                         return Err(e);
                     } else {
-                        tokens.push(result.unwrap());
-                    }
-                }
-                if let (Some(c3), Some(c4)) = (chars.next(), chars.next()) {
-                    let s = format!("0x{}{}", c3, c4);
-                    let result = s.parse::<Opcode>();
-                    if let Err(e) = result {
-                        return Err(e);
-                    } else {
-                        tokens.push(result.unwrap());
-                    }
-                }
-                if let (Some(c5), Some(c6)) = (chars.next(), chars.next()) {
-                    let s = format!("0x{}{}", c5, c6);
-                    let result = s.parse::<Opcode>();
-                    if let Err(e) = result {
-                        return Err(e);
-                    } else {
-                        tokens.push(result.unwrap());
+                        opcodes.push(result1.unwrap());
+                        opcodes.push(result2.unwrap());
+                        opcodes.push(result3.unwrap());
                     }
                 }
             }
-            Opcode::ADD => tokens.push(Opcode::ADD),
-            Opcode::MUL => tokens.push(Opcode::MUL),
-            Opcode::SUB => tokens.push(Opcode::SUB),
-            Opcode::DIV => tokens.push(Opcode::DIV),
-            Opcode::DUP2 => tokens.push(Opcode::DUP2),
-            Opcode::POP => tokens.push(Opcode::POP),
-            Opcode::SWAP1 => tokens.push(Opcode::SWAP1),
-            Opcode::SSTORE => tokens.push(Opcode::SSTORE),
-            op => tokens.push(op),
+            Opcode::ADD => opcodes.push(Opcode::ADD),
+            Opcode::MUL => opcodes.push(Opcode::MUL),
+            Opcode::SUB => opcodes.push(Opcode::SUB),
+            Opcode::DIV => opcodes.push(Opcode::DIV),
+            Opcode::DUP2 => opcodes.push(Opcode::DUP2),
+            Opcode::POP => opcodes.push(Opcode::POP),
+            Opcode::SWAP1 => opcodes.push(Opcode::SWAP1),
+            Opcode::SSTORE => opcodes.push(Opcode::SSTORE),
+            op => opcodes.push(op),
         }
+        scan_bytecode(bytecodes, opcodes)
+    } else {
+        Ok(opcodes)
     }
-    Ok(tokens)
+}
+
+/// Lex the bytecode, byte by byte, and return a vector of opcodes.
+pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
+    let input = bytecode.trim_start_matches("0x");
+    let chars = input.chars();
+    let tokens = Vec::<Opcode>::new();
+    scan_bytecode(chars, tokens)
 }
 
 #[cfg(test)]

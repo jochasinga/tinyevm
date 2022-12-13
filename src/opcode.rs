@@ -1,6 +1,6 @@
 use std::{num::ParseIntError, str::FromStr};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Opcode(pub u8);
 
 impl Opcode {
