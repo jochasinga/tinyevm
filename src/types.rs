@@ -1,4 +1,6 @@
-use std::{ops::{Add, Div, Mul, Sub}, str::FromStr};
+use std::{ops::{Add, BitOr, Div, Mul, Shl, Shr, Sub}, str::FromStr};
+use std::cmp::Ordering;
+
 
 pub enum Endian {
     Little,
@@ -18,10 +20,32 @@ impl Default for Endian {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Eq, Hash)]
 pub struct UInt256 {
     high: u128,
     low: u128,
+}
+
+// Overloading comparison, shift, and subtraction operators
+impl PartialEq for UInt256 {
+    fn eq(&self, other: &Self) -> bool {
+        self.high == other.high && self.low == other.low
+    }
+}
+
+impl PartialOrd for UInt256 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for UInt256 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.high.cmp(&other.high) {
+            Ordering::Equal => self.low.cmp(&other.low),
+            ord => ord,
+        }
+    }
 }
 
 impl std::fmt::Display for UInt256 {
@@ -30,33 +54,50 @@ impl std::fmt::Display for UInt256 {
     }
 }
 
+impl BitOr for UInt256 {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        UInt256::new(self.high | rhs.high, self.low | rhs.low)
+    }
+}
+
 
 impl Div for UInt256 {
     type Output = Self;
 
-    fn div(self, other: Self) -> Self {
-        if other.high == 0 && other.low == 0 {
-            panic!("Division by zero");
+    fn div(self, divisor: Self) -> Self {
+        if divisor.high == 0 && divisor.low == 0 {
+            panic!("division by zero");
         }
 
-        let mut quotient = UInt256 { high: 0, low: 0 };
-        let mut remainder = UInt256 { high: self.high, low: self.low };
+        if self < divisor {
+            return UInt256::ZERO;
+        }
 
-        // Start the division bit by bit from the most significant bit
-        for i in (0..256).rev() {
-            // Shift remainder left by 1 bit to make space for the next bit
-            remainder = remainder << 1;
+        if self.cmp(&divisor) == Ordering::Less {
+            return UInt256::ZERO;
+        }
 
-            // Set the current bit in the quotient if remainder >= other
-            let shifted_other = other << i;
-            if remainder >= shifted_other {
-                remainder = remainder - shifted_other;
-                if i >= 128 {
-                    quotient.high |= 1 << (i - 128);
-                } else {
-                    quotient.low |= 1 << i;
-                }
+        let mut quotient = UInt256::ZERO;
+        let mut remainder = self;
+        let mut power = divisor;
+
+        // Left shift divisor until it's greater than self, adjusting `power` for the quotient calculation
+        let mut power_of_two = UInt256::new(0, 1);
+        while remainder.cmp(&power.shl(1)) != Ordering::Less {
+            power = power.shl(1);
+            power_of_two = power_of_two.shl(1);
+        }
+
+        // Perform division by shifting and subtracting
+        while power_of_two.cmp(&UInt256::new(0, 0)) != Ordering::Equal {
+            if remainder.cmp(&power) != Ordering::Less {
+                remainder = remainder.sub(power);
+                quotient = quotient | power_of_two;
             }
+            power = power.shr(1);
+            power_of_two = power_of_two.shr(1);
         }
 
         quotient
@@ -77,17 +118,15 @@ impl Add for UInt256 {
             if high == u128::MAX {
                 panic!("addition overflow on least significant bits");
             }
-            let res = UInt256 {
+            return UInt256 {
                 high: high + 1,
                 low: self.low
             };
-            return res;
         }
-        let res = UInt256 {
+        UInt256 {
             high: self.high,
             low,
-        };
-        return res;
+        }
     }
 }
 
@@ -106,18 +145,16 @@ impl Sub for UInt256 {
             if borrow_high {
                 panic!("subtraction overflow on most significant bits");
             }
-            let res = UInt256 {
+            return UInt256 {
                 high: high - 1,
                 low: self.low
             };
-            println!("res #1 {:?}", res);
         }
         let res = UInt256 {
             high: self.high,
             low,
         };
-        println!("res #2 {:?}", res);
-        return res;
+        res
     }
 }
 
@@ -145,9 +182,26 @@ impl Mul for UInt256 {
         UInt256 { high, low }
     }
 }
+impl Shr<u32> for UInt256 {
+    type Output = Self;
+
+    fn shr(self, shift: u32) -> Self {
+        if shift >= 128 {
+            UInt256 {
+                high: 0,
+                low: self.high >> (shift - 128),
+            }
+        } else {
+            UInt256 {
+                high: self.high >> shift,
+                low: (self.high << (128 - shift)) | (self.low >> shift),
+            }
+        }
+    }
+}
 
 // Helper implementation for left shift (<<) to handle shifting UInt256 by bit positions
-impl std::ops::Shl<u32> for UInt256 {
+impl Shl<u32> for UInt256 {
     type Output = Self;
 
     fn shl(self, shift: u32) -> Self {
@@ -294,6 +348,20 @@ mod tests {
         assert_eq!(u256_value.low, 0xffffffffffffffffffffffffffffffff);
     }
 
+    #[test]
+    fn test_shl() {
+        let a = UInt256::from(100) << 1;
+        assert_eq!(
+            a.as_usize().expect("a usize"),
+            200,
+        );
+        let b = UInt256::from(100) << 2;
+        assert_eq!(
+            b.as_usize().expect("a usize"),
+            400,
+        );
+    }
+
     #[cfg(test)]
     mod test_addition {
         use super::*;
@@ -407,13 +475,39 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_uint256_div() {
-        let u256_value1 = UInt256::from(10_000_000);
-        let u256_value2 = UInt256::from(2);
-        let u256_value3 = u256_value1 / u256_value2;
-        let quotient = UInt256::from(5_000_000);
-        assert_eq!(u256_value3, quotient);
+    #[cfg(test)]
+    mod test_division {
+
+        use super::*;
+
+        #[test]
+        fn test_uint256_div_basic() {
+            let a = UInt256::from(10_000_000);
+            let b = UInt256::from(2);
+            let c = a / b;
+            let expected = UInt256::from(5_000_000);
+            assert_eq!(c, expected);
+        }
+
+        #[test]
+        #[should_panic(expected = "division by zero")]
+        fn test_uint256_div_by_zero() {
+            let _ = UInt256::from(100000) / UInt256::ZERO;
+        }
+
+        #[test]
+        fn test_uint256_zero_dividend() {
+            let a = UInt256::ZERO / UInt256::from(3_000_000);
+            assert_eq!(a, UInt256::ZERO);
+        }
+
+        #[test]
+        fn test_uint256_smaller_dividend() {
+            let a = UInt256::from(1_000_000);
+            let b = UInt256::from(1_000_000_000);
+            let c = a / b;
+            assert_eq!(c, UInt256::ZERO);
+        }
     }
 
     #[test]
