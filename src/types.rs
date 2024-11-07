@@ -92,17 +92,32 @@ impl Add for UInt256 {
 }
 
 impl Sub for UInt256 {
+
     type Output = Self;
 
-    fn sub(self, other: Self) -> Self {
-        let (low, borrow) = self.low.overflowing_sub(other.low);
-        let high = if borrow {
-            self.high - other.high - 1
-        } else {
-            self.high - other.high
-        };
+    fn sub(self, rhs: Self) -> Self {
+        if self < rhs {
+            panic!("subtraction overflow");
+        }
 
-        UInt256 { high, low }
+        let (low, borrow_low) = self.low.overflowing_sub(rhs.low);
+        if borrow_low {
+            let (high, borrow_high) = self.high.overflowing_sub(rhs.high);
+            if borrow_high {
+                panic!("subtraction overflow on most significant bits");
+            }
+            let res = UInt256 {
+                high: high - 1,
+                low: self.low
+            };
+            println!("res #1 {:?}", res);
+        }
+        let res = UInt256 {
+            high: self.high,
+            low,
+        };
+        println!("res #2 {:?}", res);
+        return res;
     }
 }
 
@@ -266,6 +281,7 @@ impl UInt256 {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
@@ -280,12 +296,7 @@ mod tests {
 
     #[cfg(test)]
     mod test_addition {
-        use std::u128;
         use super::*;
-
-        fn subtract_bitwise(lhs: u128, rhs: u128) -> u128{
-            lhs.wrapping_add(!rhs).wrapping_add(1)
-        }
 
         #[test]
         #[should_panic(expected = "addition overflow on least significant bits")]
@@ -318,15 +329,37 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_uint256_sub() {
-        let u256_value1 = UInt256::from(1000_000_000);
-        let u256_value2 = UInt256::from(999_999_999);
-        let u256_value3 = u256_value1 - u256_value2;
-        assert_eq!(u256_value3, UInt256::ONE);
-        let u256_value4 = UInt256::from(801002);
-        let u256_value5 = u256_value1 - u256_value4;
-        assert_eq!(u256_value5, UInt256::from(999198998));
+    #[cfg(test)]
+    mod test_subtraction {
+
+        use super::*;
+
+        #[test]
+        #[should_panic(expected = "subtraction overflow")]
+        fn test_uint256_subtract_overflow() {
+            let a = UInt256::ONE;
+            let b = UInt256::MAX;
+            let _ = a - b;
+        }
+
+        #[test]
+        #[should_panic(expected = "subtraction overflow")]
+        fn test_uint256_subtract_overflow_1() {
+            let a = UInt256::from(100_000_000);
+            let b = UInt256::from(150_000_000_000);
+            let _ = a - b;
+        }
+
+        #[test]
+        fn test_uint256_sub() {
+            let v1 = UInt256::from(1000_000_000);
+            let v2 = UInt256::from(999_999_999);
+            let v3 = v1 - v2;
+            assert_eq!(v3, UInt256::ONE);
+            let v4 = UInt256::from(801_002);
+            let v5 = v1 - v4;
+            assert_eq!(v5, UInt256::from(999_198_998));
+        }
     }
 
     #[test]
