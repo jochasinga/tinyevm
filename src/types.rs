@@ -362,12 +362,49 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_uint256_mul() {
-        let u256_value1 = UInt256::from(1000_000_000);
-        let u256_value2 = UInt256::from(999_999_999);
-        let u256_value3 = u256_value1 * u256_value2;
-        assert_eq!(u256_value3, UInt256::from(999_999_999_000_000_000));
+    #[cfg(test)]
+    mod test_multiplication {
+
+        use super::*;
+
+        #[test]
+        fn test_uint256_mul_communitative() {
+            let a = UInt256::from(1000_000_000);
+            let b = UInt256::from(200_000_000);
+            assert_eq!(a * b, b * a);
+        }
+
+        #[test]
+        fn test_uint256_mul_identity() {
+            let a = UInt256::from(1000_000_000);
+            let b = UInt256::from(1);
+            let c = a * b;
+            assert_eq!(c, a);
+        }
+
+        #[test]
+        fn test_uint256_mul_zero_property() {
+            let a = UInt256::from(1000_000_000);
+            let b = UInt256::ZERO;
+            let c = a * b;
+            assert_eq!(c, UInt256::ZERO);
+        }
+
+        #[test]
+        fn test_uint256_mul_basic() {
+            let u256_value1 = UInt256::from(1000_000_000);
+            let u256_value2 = UInt256::from(999_999_999);
+            let u256_value3 = u256_value1 * u256_value2;
+            assert_eq!(u256_value3, UInt256::from(999_999_999_000_000_000));
+        }
+
+        #[test]
+        #[should_panic(expected = "attempt to multiply with overflow")]
+        fn test_uint256_mul_overflow() {
+            let a = UInt256::MAX;
+            let b = UInt256::from(2);
+            let _ = a * b;
+        }
     }
 
     #[test]
