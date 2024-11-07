@@ -1,8 +1,10 @@
 # tinyevm
 
-A tiny stack machine for learning Ethereum bytecode (WIP).
+A zero-dependency EVM stack machine (WIP).
 
-I created **TinyEVM** as a mean to learn about Ethereum Virtual Machine. TinyEVM parses a piece of Ethereum bytecode compiled from smart contract languages like Solidity, convert them to the a vector of opcodes, and use the stack to do computations.
+I created **TinyEVM** as a mean to learn about Ethereum Virtual Machine and hopefully serve as a light-weight, transparent backend for project [Monet](https://github.com/monetlang/monet). 
+
+TinyEVM parses a piece of Ethereum bytecode compiled from smart contract languages like Solidity, convert them to the a vector of opcodes, and use the stack to do computations.
 
 The stack has a word size of 32 bytes (256-bit) and a limit of 1024 items.
 

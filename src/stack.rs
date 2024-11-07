@@ -51,7 +51,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
         match code {
             Opcode::PUSH1 => {
                 if let Some(Opcode(n)) = opcodes.next() {
-                    if let Err(e) = stack.push(UInt256::from_little_endian(&[n])) {
+                    if let Err(e) = stack.push(UInt256::from_le(&[n])) {
                         panic!("{}", e);
                     }
                 }
@@ -82,9 +82,9 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
             Opcode::ISZERO => {
                 if let Some(top) = stack.top() {
                     if top.is_zero() {
-                        stack.push(UInt256::from_little_endian(&[0x01])).unwrap();
+                        stack.push(UInt256::from_le(&[0x01])).unwrap();
                     } else {
-                        stack.push(UInt256::from_little_endian(&[0x00])).unwrap();
+                        stack.push(UInt256::from_le(&[0x00])).unwrap();
                     }
                 } else {
                     panic!(
@@ -139,7 +139,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                 }
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
-                        memory.store(last.as_usize(), second_last);
+                        memory.store(last.as_usize().unwrap(), second_last);
                     }
                 }
             }
@@ -366,19 +366,19 @@ mod tests {
         assert_eq!(
             s,
             Stack(vec![
-                UInt256::from_little_endian(&[0x01]),
-                UInt256::from_little_endian(&[0x02]),
-                UInt256::from_little_endian(&[0x03]),
+                UInt256::from_le(&[0x01]),
+                UInt256::from_le(&[0x02]),
+                UInt256::from_le(&[0x03]),
             ])
         );
 
         let (hd, tl) = s.pop();
-        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x03]));
+        assert_eq!(hd.unwrap(), UInt256::from_le(&[0x03]));
         assert_eq!(
             *tl,
             Stack(vec![
-                UInt256::from_little_endian(&[0x01]),
-                UInt256::from_little_endian(&[0x02]),
+                UInt256::from_le(&[0x01]),
+                UInt256::from_le(&[0x02]),
             ])
         );
     }
@@ -540,7 +540,7 @@ mod tests {
     fn test_eval_add() {
         let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6001600101").unwrap());
         let (hd, tl) = stack.pop();
-        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x02]));
+        assert_eq!(hd.unwrap(), UInt256::from_le(&[0x02]));
         assert_eq!(*tl, Stack::EMPTY);
     }
 
@@ -548,7 +548,7 @@ mod tests {
     fn test_eval_div() {
         let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6002600404").unwrap());
         let (last, rest) = stack.pop();
-        assert_eq!(last.unwrap(), UInt256::from_little_endian(&[0x02]));
+        assert_eq!(last.unwrap(), UInt256::from_le(&[0x02]));
         assert_eq!(*rest, Stack::EMPTY);
     }
 
@@ -583,7 +583,7 @@ mod tests {
     fn test_eval_mul() {
         let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6002600202").unwrap());
         let (hd, tl) = stack.pop();
-        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x04]));
+        assert_eq!(hd.unwrap(), UInt256::from_le(&[0x04]));
         assert_eq!(*tl, Stack::EMPTY);
     }
 
@@ -591,7 +591,7 @@ mod tests {
     fn test_eval_sub() {
         let (mut stack, _, _) = eval_opcode(lex_bytecode("0x6001600203").unwrap());
         let (last, rest) = stack.pop();
-        assert_eq!(last.unwrap(), UInt256::from_little_endian(&[0x01]));
+        assert_eq!(last.unwrap(), UInt256::from_le(&[0x01]));
         assert_eq!(*rest, Stack::EMPTY);
     }
 
@@ -602,8 +602,8 @@ mod tests {
         let (hd, tl) = stack.pop();
 
         // We should end up with 0x01 on the stack for "true".
-        assert_eq!(hd.unwrap(), UInt256::from_little_endian(&[0x01]));
-        assert_eq!(*tl, Stack(vec![UInt256::from_little_endian(&[0x00])]));
+        assert_eq!(hd.unwrap(), UInt256::from_le(&[0x01]));
+        assert_eq!(*tl, Stack(vec![UInt256::from_le(&[0x00])]));
     }
 
     #[test]
@@ -613,8 +613,8 @@ mod tests {
         let (hd, _) = stack.pop();
         assert!(hd.is_none());
         let value: UInt256 = memory.load(0x40_usize);
-        let mut bytes = [0x00; 32];
-        value.to_little_endian(&mut bytes);
+        let bytes = [0x00; 32];
+        value.to_le();
         assert_eq!(bytes[0], 0x60);
     }
 
@@ -624,7 +624,7 @@ mod tests {
         let (mut stack, storage, _) = eval_opcode(result);
         let (hd, _) = stack.pop();
         assert!(hd.is_none());
-        let val = storage.load(UInt256::from_little_endian(&[0x00]));
-        assert_eq!(*val, UInt256::from_little_endian(&[0x01]));
+        let val = storage.load(UInt256::from_le(&[0x00]));
+        assert_eq!(*val, UInt256::from_le(&[0x01]));
     }
 }

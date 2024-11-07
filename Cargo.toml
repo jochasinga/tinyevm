@@ -11,6 +11,3 @@ path = "src/lib.rs"
 [[bin]]
 name = "tinyevm"
 path = "src/main.rs"
-
-[dependencies]
-primitive-types = "^0.12.1"

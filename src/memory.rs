@@ -17,7 +17,7 @@ impl Memory {
         for (i, byte) in self.0[offset..offset + 32].iter().enumerate() {
             bytes[i] = *byte;
         }
-        UInt256::from_little_endian(&bytes)
+        UInt256::from_le(&bytes)
     }
 
     /// Public interface to MSTORE8.
@@ -29,8 +29,8 @@ impl Memory {
     /// Public interface to MSTORE.
     /// Store a 256-bit integer in memory.
     pub fn store(&mut self, offset: usize, val: UInt256) {
-        let mut bytes = [0x00; 32];
-        val.to_little_endian(&mut bytes);
+        let bytes = [0x00; 32];
+        val.to_le();
         for (i, byte) in bytes.iter().enumerate() {
             self.0[offset + i] = *byte;
         }
@@ -52,7 +52,7 @@ mod tests {
         let mut memory = Memory::new();
         memory.store8(0, 0x01);
         let value = memory.load(0);
-        let expected = UInt256::from_little_endian(&[0x01]);
+        let expected = UInt256::from_le(&[0x01]);
         assert_eq!(value, expected);
     }
 
