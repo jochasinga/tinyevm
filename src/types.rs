@@ -23,11 +23,13 @@ pub struct UInt256 {
     high: u128,
     low: u128,
 }
- 
-pub struct UInt256DivResult {
-    pub quotient: UInt256,
-    pub remainder: UInt256,
+
+impl std::fmt::Display for UInt256 {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "0x{:032x}{:032x}", self.high, self.low)
+    }
 }
+
 
 impl Div for UInt256 {
     type Output = Self;
@@ -278,7 +280,12 @@ mod tests {
 
     #[cfg(test)]
     mod test_addition {
-        use crate::types::UInt256;
+        use std::u128;
+        use super::*;
+
+        fn subtract_bitwise(lhs: u128, rhs: u128) -> u128{
+            lhs.wrapping_add(!rhs).wrapping_add(1)
+        }
 
         #[test]
         #[should_panic(expected = "addition overflow on least significant bits")]
@@ -294,6 +301,20 @@ mod tests {
             let b = UInt256::from(999_999_999);
             let c = a + b;
             assert_eq!(c, UInt256::from(1999_999_999));
+        }
+
+        #[test]
+        fn test_uint256_zero_property() {
+            let c = UInt256::MAX + UInt256::ZERO;
+            assert_eq!(c, UInt256::MAX);
+        }
+
+        #[test]
+        fn test_uint256_add_big() {
+            let a = UInt256::MAX - UInt256::ONE;
+            let b = UInt256::ONE;
+            let c = a + b;
+            assert_eq!(c, UInt256::MAX);
         }
     }
 
