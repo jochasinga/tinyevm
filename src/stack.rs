@@ -239,8 +239,8 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                 }
                 if let (Some(last), _) = stack.pop() {
                     if let (Some(second_last), _) = stack.pop() {
-                        let div = last / second_last;
-                        if let Err(e) = stack.push(div) {
+                        let quotient = last / second_last;
+                        if let Err(e) = stack.push(quotient) {
                             panic!("{}", e);
                         }
                     }

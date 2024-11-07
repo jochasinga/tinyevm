@@ -23,6 +23,11 @@ pub struct UInt256 {
     high: u128,
     low: u128,
 }
+ 
+pub struct UInt256DivResult {
+    pub quotient: UInt256,
+    pub remainder: UInt256,
+}
 
 impl Div for UInt256 {
     type Output = Self;
@@ -35,16 +40,15 @@ impl Div for UInt256 {
         let mut quotient = UInt256 { high: 0, low: 0 };
         let mut remainder = UInt256 { high: self.high, low: self.low };
 
+        // Start the division bit by bit from the most significant bit
         for i in (0..256).rev() {
-            // Shift remainder left by 1 to make space for the next bit
-            remainder = UInt256 {
-                high: (remainder.high << 1) | (remainder.low >> 127),
-                low: remainder.low << 1,
-            };
+            // Shift remainder left by 1 bit to make space for the next bit
+            remainder = remainder << 1;
 
-            // Set the current bit in the quotient
-            if remainder >= other {
-                remainder = remainder - other;
+            // Set the current bit in the quotient if remainder >= other
+            let shifted_other = other << i;
+            if remainder >= shifted_other {
+                remainder = remainder - shifted_other;
                 if i >= 128 {
                     quotient.high |= 1 << (i - 128);
                 } else {
@@ -60,10 +64,28 @@ impl Div for UInt256 {
 impl Add for UInt256 {
     type Output = Self;
 
-    fn add(self, other: Self) -> Self {
-        let (low, carry) = self.low.overflowing_add(other.low);
-        let high = self.high + other.high + if carry { 1 } else { 0 };
-        UInt256 { high, low }
+    fn add(self, rhs: Self) -> Self {
+        let (low, carry_low) = self.low.overflowing_add(rhs.low);
+
+        if carry_low {
+            let (high, carry_high) = self.high.overflowing_add(rhs.high);
+            if carry_high {
+                panic!("addition overflow on most significant bits");
+            }
+            if high == u128::MAX {
+                panic!("addition overflow on least significant bits");
+            }
+            let res = UInt256 {
+                high: high + 1,
+                low: self.low
+            };
+            return res;
+        }
+        let res = UInt256 {
+            high: self.high,
+            low,
+        };
+        return res;
     }
 }
 
@@ -107,6 +129,25 @@ impl Mul for UInt256 {
     }
 }
 
+// Helper implementation for left shift (<<) to handle shifting UInt256 by bit positions
+impl std::ops::Shl<u32> for UInt256 {
+    type Output = Self;
+
+    fn shl(self, shift: u32) -> Self {
+        if shift >= 128 {
+            UInt256 {
+                high: self.low << (shift - 128),
+                low: 0,
+            }
+        } else {
+            UInt256 {
+                high: (self.high << shift) | (self.low >> (128 - shift)),
+                low: self.low << shift,
+            }
+        }
+    }
+}
+
 const DEFAULT_RADIX: u32 = 16;
 const DEFAULT_ENDIAN: Endian = Endian::Big;
 
@@ -137,23 +178,15 @@ impl TryInto<usize> for UInt256 {
 }
 
 impl UInt256 {
+    pub const ZERO: Self = Self { high: 0, low: 0 };
+    pub const ONE: Self = Self { high: 0, low: 1 };
+    pub const MAX: Self = Self {
+        high: u128::MAX,
+        low: u128::MAX,
+    };
+
     pub fn new(high: u128, low: u128) -> Self {
         UInt256 { high, low }
-    }
-
-    pub fn zero() -> Self {
-        UInt256 { high: 0, low: 0 }
-    }
-
-    pub fn one() -> Self {
-        UInt256 { high: 0, low: 1 }
-    }
-
-    pub fn max() -> Self {
-        UInt256 {
-            high: u128::MAX,
-            low: u128::MAX,
-        }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -236,22 +269,32 @@ mod tests {
     #[test]
     fn test_uint256_from_str() {
         let mut u256_value = UInt256::from_str("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap();
-
-        println!("High: {:x}, Low: {:x}", u256_value.high, u256_value.low);
         assert_eq!(u256_value.high, 0x1234567890abcdef1234567890abcdef);
         assert_eq!(u256_value.low, 0x1234567890abcdef1234567890abcdef);
-
-        u256_value = UInt256::max();
+        u256_value = UInt256::MAX;
         assert_eq!(u256_value.high, 0xffffffffffffffffffffffffffffffff);
         assert_eq!(u256_value.low, 0xffffffffffffffffffffffffffffffff);
     }
 
-    #[test]
-    fn test_uint256_add() {
-        let u256_value1 = UInt256::max() - UInt256::max() / 2.into();
-        let u256_value2 = UInt256::max() / 2.into();
-        let u256_value3 = u256_value1 + u256_value2;
-        assert_eq!(u256_value3, UInt256::max());
+    #[cfg(test)]
+    mod test_addition {
+        use crate::types::UInt256;
+
+        #[test]
+        #[should_panic(expected = "addition overflow on least significant bits")]
+        fn test_uint256_add_overflow() {
+            let a = UInt256::MAX;
+            let b = UInt256::ONE;
+            let _ = a + b;
+        }
+
+        #[test]
+        fn test_uint256_add_basic() {
+            let a = UInt256::from(1000_000_000);
+            let b = UInt256::from(999_999_999);
+            let c = a + b;
+            assert_eq!(c, UInt256::from(1999_999_999));
+        }
     }
 
     #[test]
@@ -259,10 +302,27 @@ mod tests {
         let u256_value1 = UInt256::from(1000_000_000);
         let u256_value2 = UInt256::from(999_999_999);
         let u256_value3 = u256_value1 - u256_value2;
-        assert_eq!(u256_value3, UInt256::one());
+        assert_eq!(u256_value3, UInt256::ONE);
         let u256_value4 = UInt256::from(801002);
         let u256_value5 = u256_value1 - u256_value4;
         assert_eq!(u256_value5, UInt256::from(999198998));
+    }
+
+    #[test]
+    fn test_uint256_mul() {
+        let u256_value1 = UInt256::from(1000_000_000);
+        let u256_value2 = UInt256::from(999_999_999);
+        let u256_value3 = u256_value1 * u256_value2;
+        assert_eq!(u256_value3, UInt256::from(999_999_999_000_000_000));
+    }
+
+    #[test]
+    fn test_uint256_div() {
+        let u256_value1 = UInt256::from(10_000_000);
+        let u256_value2 = UInt256::from(2);
+        let u256_value3 = u256_value1 / u256_value2;
+        let quotient = UInt256::from(5_000_000);
+        assert_eq!(u256_value3, quotient);
     }
 
     #[test]
@@ -275,6 +335,74 @@ mod tests {
         let u256_value = UInt256::from_be(&bytes);
         let be_bytes = u256_value.to_be();
         assert_eq!(bytes, be_bytes);
+    }
+
+    #[cfg(test)]
+    mod div_tests {
+        use super::*;
+        #[test]
+        fn test_div_basic() {
+            // Test division of two simple numbers
+            let a = UInt256 { high: 0, low: 10 };
+            let b = UInt256 { high: 0, low: 2 };
+            let result = a / b;
+            let quotient = UInt256 { high: 0, low: 5 };
+            assert_eq!(result, quotient);
+        }
+
+        #[test]
+        fn test_div_by_one() {
+            // Test division by one (should return the original number)
+            let a = UInt256 { high: 12345, low: 67890 };
+            let b = UInt256 { high: 0, low: 1 };
+            let result = a / b;
+            let quotient = a;
+            assert_eq!(result, quotient);
+        }
+
+        #[test]
+        fn test_div_large_divisor() {
+            // Test division where the divisor is greater than the dividend (should return zero)
+            let a = UInt256 { high: 0, low: 5 };
+            let b = UInt256 { high: 0, low: 10 };
+            let result = a / b;
+            let quotient = UInt256 { high: 0, low: 0 };
+            assert_eq!(result, quotient);
+        }
+
+        #[test]
+        fn test_div_self() {
+            // Test division of a number by itself (should return one)
+            let a = UInt256 { high: 12345, low: 67890 };
+            let result = a / a;
+            let quotient = UInt256 { high: 0, low: 1 };
+            assert_eq!(result, quotient);
+        }
+
+        #[test]
+        #[should_panic(expected = "Division by zero")]
+        fn test_div_by_zero() {
+            // Test division by zero (should panic)
+            let a = UInt256 { high: 1, low: 0 };
+            let b = UInt256 { high: 0, low: 0 };
+            let _ = a / b; // This should panic
+        }
+
+        #[test]
+        fn test_div_large_numbers() {
+            // Test division with large numbers
+            let a = UInt256 {
+                high: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                low: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+            };
+            let b = UInt256 { high: 0, low: 2 };
+            let result = a / b;
+            let quotient = UInt256 {
+                high: 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+                low: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+            };
+            assert_eq!(result, quotient);
+        }
     }
 }
 
