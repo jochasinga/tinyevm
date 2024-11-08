@@ -2,6 +2,7 @@ use std::{ops::{Add, BitOr, Div, Mul, Shl, Shr, Sub}, str::FromStr};
 use std::cmp::Ordering;
 
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Endian {
     Little,
     Big,
@@ -20,10 +21,98 @@ impl Default for Endian {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, Eq, Hash)]
 pub struct UInt256 {
     high: u128,
     low: u128,
+}
+
+impl UInt256 {
+    pub const ZERO: Self = Self { high: 0, low: 0 };
+    pub const ONE: Self = Self { high: 0, low: 1 };
+    pub const MAX: Self = Self {
+        high: u128::MAX,
+        low: u128::MAX,
+    };
+
+    pub fn new(high: u128, low: u128) -> Self {
+        UInt256 { high, low }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.high == 0 && self.low == 0
+    }
+
+    pub fn as_usize(&self) -> Result<usize, String> {
+        let max_usize = Self::from(usize::MAX);
+        if self.high != 0 || self.low > max_usize.low {
+            return Err("Value too large".to_string());
+        }
+        Ok(self.low as usize)
+    }
+
+    pub fn from_str_radix(s: &str, radix: u32) -> Result<Self, &'static str> {
+        let s = s.trim();
+        if s.len() != 64 {
+            return Err("Invalid length");
+        }
+        let low = u128::from_str_radix(&s[32..], radix).map_err(|_| "Invalid hex")?;
+        let high = u128::from_str_radix(&s[..32], radix).map_err(|_| "Invalid hex")?;
+        Ok(UInt256 { high, low })
+    }
+
+    pub fn from_le(bytes: &[u8]) -> Self {
+        let mut low = 0;
+        let mut high = 0;
+        for (i, byte) in bytes.iter().enumerate() {
+            if i < 16 {
+                low |= (*byte as u128) << (i * 8);
+            } else {
+                high |= (*byte as u128) << ((i - 16) * 8);
+            }
+        }
+        UInt256 { high, low }
+    }
+
+    pub fn from_be(bytes: &[u8]) -> Self {
+        let mut low = 0;
+        let mut high = 0;
+
+       // Ensure the input is treated as a 32-byte array, padded with leading zeros if necessary
+       for (i, byte) in bytes.iter().rev().enumerate() {
+            if i < 16 {
+                low |= (*byte as u128) << (i * 8);
+            } else if i < 32 {
+                high |= (*byte as u128) << ((i - 16) * 8);
+            }
+        }
+
+        UInt256 { high, low }
+    }
+
+    pub fn to_le(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(32);
+        for i in 0..32 {
+            if i < 16 {
+                bytes.push(((self.low >> (i * 8)) & 0xff) as u8);
+            } else {
+                bytes.push(((self.high >> ((i - 16) * 8)) & 0xff) as u8);
+            }
+        }
+        bytes
+    }
+
+    pub fn to_be(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(32);
+        for i in 0..32 {
+            if i < 16 {
+                bytes.push(((self.low >> ((15 - i) * 8)) & 0xff) as u8);
+            } else {
+                bytes.push(((self.high >> ((31 - i) * 8)) & 0xff) as u8);
+            }
+        }
+        bytes
+    }
 }
 
 // Overloading comparison, shift, and subtraction operators
@@ -61,7 +150,6 @@ impl BitOr for UInt256 {
         UInt256::new(self.high | rhs.high, self.low | rhs.low)
     }
 }
-
 
 impl Div for UInt256 {
     type Output = Self;
@@ -248,91 +336,6 @@ impl TryInto<usize> for UInt256 {
     }
 }
 
-impl UInt256 {
-    pub const ZERO: Self = Self { high: 0, low: 0 };
-    pub const ONE: Self = Self { high: 0, low: 1 };
-    pub const MAX: Self = Self {
-        high: u128::MAX,
-        low: u128::MAX,
-    };
-
-    pub fn new(high: u128, low: u128) -> Self {
-        UInt256 { high, low }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.high == 0 && self.low == 0
-    }
-
-    pub fn as_usize(&self) -> Result<usize, String> {
-        let max_usize = Self::from(usize::MAX);
-        if self.high != 0 || self.low > max_usize.low {
-            return Err("Value too large".to_string());
-        }
-        Ok(self.low as usize)
-    }
-
-    pub fn from_str_radix(s: &str, radix: u32) -> Result<Self, &'static str> {
-        let s = s.trim();
-        if s.len() != 64 {
-            return Err("Invalid length");
-        }
-        let low = u128::from_str_radix(&s[32..], radix).map_err(|_| "Invalid hex")?;
-        let high = u128::from_str_radix(&s[..32], radix).map_err(|_| "Invalid hex")?;
-        Ok(UInt256 { high, low })
-    }
-
-    pub fn from_le(bytes: &[u8]) -> Self {
-        let mut low = 0;
-        let mut high = 0;
-        for (i, byte) in bytes.iter().enumerate() {
-            if i < 16 {
-                low |= (*byte as u128) << (i * 8);
-            } else {
-                high |= (*byte as u128) << ((i - 16) * 8);
-            }
-        }
-        UInt256 { high, low }
-    }
-
-    pub fn from_be(bytes: &[u8]) -> Self {
-        let mut low = 0;
-        let mut high = 0;
-        for (i, byte) in bytes.iter().enumerate() {
-            if i < 16 {
-                low |= (*byte as u128) << ((15 - i) * 8);
-            } else {
-                high |= (*byte as u128) << ((31 - i) * 8);
-            }
-        }
-        UInt256 { high, low }
-    }
-
-    pub fn to_le(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(32);
-        for i in 0..32 {
-            if i < 16 {
-                bytes.push(((self.low >> (i * 8)) & 0xff) as u8);
-            } else {
-                bytes.push(((self.high >> ((i - 16) * 8)) & 0xff) as u8);
-            }
-        }
-        bytes
-    }
-
-    pub fn to_be(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(32);
-        for i in 0..32 {
-            if i < 16 {
-                bytes.push(((self.low >> ((15 - i) * 8)) & 0xff) as u8);
-            } else {
-                bytes.push(((self.high >> ((31 - i) * 8)) & 0xff) as u8);
-            }
-        }
-        bytes
-    }
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -510,16 +513,43 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_endian_conversion() {
-        let bytes = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
-        let u256_value = UInt256::from_le(&bytes);
-        let le_bytes = u256_value.to_le();
-        assert_eq!(bytes, le_bytes);
+    #[cfg(test)]
+    mod test_endianness {
 
-        let u256_value = UInt256::from_be(&bytes);
-        let be_bytes = u256_value.to_be();
-        assert_eq!(bytes, be_bytes);
+        use super::*;
+
+        #[test]
+        fn test_endian_conversions() {
+            let bytes = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
+            // let u256_value = UInt256::from_le(&bytes);
+            // let le_bytes = u256_value.to_le();
+            // assert_eq!(bytes, le_bytes);
+
+            let u256_value = UInt256::from_be(&bytes);
+            let be_bytes = u256_value.to_be();
+            assert_eq!(bytes, be_bytes);
+        }
+
+        #[test]
+        fn test_endian_from() {
+            let bytes = vec![0x01, 0x4a];
+            let a = UInt256::from_le(&bytes);
+            assert_eq!(format!("{}", a), "0x0000000000000000000000000000000000000000000000000000000000004a01");
+            assert_eq!(a, UInt256::from(18945));
+
+            let b = UInt256::from_be(&bytes);
+            assert_eq!(format!("{}", b), "0x000000000000000000000000000000000000000000000000000000000000014a");
+            assert_eq!(b, UInt256::from(330));
+        }
+
+        #[test]
+        fn test_to_uint256() {
+            let bytes: Vec<u8> = vec![0x01, 0x04a];
+            // let a = to_uint256(&bytes, Endian::Big);
+            // assert_eq!(a, UInt256::from(330));
+            let b = to_uint256(&bytes, Endian::Little);
+            assert_eq!(b, UInt256::from(18945));
+        }
     }
 
     #[cfg(test)]

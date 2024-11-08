@@ -3,7 +3,8 @@ use std::num::ParseIntError;
 
 use crate::{memory::Memory, opcode::Opcode, storage::Storage};
 
-#[derive(PartialEq, Debug)]
+/// An implementation of a EVM stack machine.
+#[derive(PartialEq, Debug, Default)]
 pub struct Stack(Vec<UInt256>);
 
 impl Stack {
@@ -38,6 +39,8 @@ impl Stack {
     pub fn size(&self) -> usize {
         self.0.len()
     }
+
+
 }
 
 /// Evaluate a vector of opcodes and return the stack.
@@ -366,9 +369,9 @@ mod tests {
         assert_eq!(
             s,
             Stack(vec![
-                UInt256::from_le(&[0x01]),
-                UInt256::from_le(&[0x02]),
-                UInt256::from_le(&[0x03]),
+                UInt256::from_be(&[0x01]),
+                UInt256::from_be(&[0x02]),
+                UInt256::from_be(&[0x03]),
             ])
         );
 
