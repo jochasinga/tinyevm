@@ -17,7 +17,7 @@ impl Memory {
         for (i, byte) in self.0[offset..offset + 32].iter().enumerate() {
             bytes[i] = *byte;
         }
-        UInt256::from_le(&bytes)
+        UInt256::from_le_bytes(&bytes)
     }
 
     /// Public interface to MSTORE8.
@@ -52,7 +52,7 @@ mod tests {
         let mut memory = Memory::new();
         memory.store8(0, 0x01);
         let value = memory.load(0);
-        let expected = UInt256::from_le(&[0x01]);
+        let expected = UInt256::from_le_bytes(&[0x01]);
         assert_eq!(value, expected);
     }
 

@@ -35,8 +35,8 @@ mod tests {
     #[test]
     fn test_storage_private_methods() {
         let mut storage = Storage::new();
-        let k = UInt256::from_le(&[0x00]);
-        let v = UInt256::from_le(&[0x01]);
+        let k = UInt256::from_le_bytes(&[0x00]);
+        let v = UInt256::from_le_bytes(&[0x01]);
         storage.insert(k, v);
         assert_eq!(storage.get(k), Some(&v));
     }
@@ -44,8 +44,8 @@ mod tests {
     #[test]
     fn test_storage_public_methods() {
         let mut storage = Storage::new();
-        let k = UInt256::from_le(&[0x00]);
-        let v = UInt256::from_le(&[0x01]);
+        let k = UInt256::from_le_bytes(&[0x00]);
+        let v = UInt256::from_le_bytes(&[0x01]);
         storage.store(k, v);
         assert_eq!(storage.load(k), &v);
     }

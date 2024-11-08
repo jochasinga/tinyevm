@@ -10,8 +10,8 @@ pub enum Endian {
 
 pub fn to_uint256(bytes: &[u8], endian: Endian) -> UInt256 {
     match endian {
-        Endian::Little => UInt256::from_le(bytes),
-        Endian::Big => UInt256::from_be(bytes),
+        Endian::Little => UInt256::from_le_bytes(bytes),
+        Endian::Big => UInt256::from_be_bytes(bytes),
     }
 }
 
@@ -61,7 +61,7 @@ impl UInt256 {
         Ok(UInt256 { high, low })
     }
 
-    pub fn from_le(bytes: &[u8]) -> Self {
+    pub fn from_le_bytes(bytes: &[u8]) -> Self {
         let mut low = 0;
         let mut high = 0;
         for (i, byte) in bytes.iter().enumerate() {
@@ -74,7 +74,7 @@ impl UInt256 {
         UInt256 { high, low }
     }
 
-    pub fn from_be(bytes: &[u8]) -> Self {
+    pub fn from_be_bytes(bytes: &[u8]) -> Self {
         let mut low = 0;
         let mut high = 0;
 
@@ -151,44 +151,52 @@ impl BitOr for UInt256 {
     }
 }
 
+pub fn divide(dividend: UInt256, divisor: UInt256) -> (UInt256, UInt256) {
+    let zero = UInt256::ZERO;
+    if dividend < divisor {
+        return (zero, zero,);
+    }
+
+    if dividend.cmp(&divisor) == Ordering::Less {
+        return (zero, zero,);
+    }
+
+    let mut quotient = UInt256::ZERO;
+    let mut remainder = dividend;
+    let mut power = divisor;
+
+    // Left shift divisor until it's greater than self, adjusting `power` for the quotient calculation
+    let mut power_of_two = UInt256::new(0, 1);
+    while remainder.cmp(&power.shl(1)) != Ordering::Less {
+        power = power.shl(1);
+        power_of_two = power_of_two.shl(1);
+    }
+
+    // Perform division by shifting and subtracting
+    while power_of_two.cmp(&UInt256::new(0, 0)) != Ordering::Equal {
+        if remainder.cmp(&power) != Ordering::Less {
+            remainder = remainder.sub(power);
+            quotient = quotient | power_of_two;
+        }
+        power = power.shr(1);
+        power_of_two = power_of_two.shr(1);
+    }
+    (quotient, remainder)
+}
+
 impl Div for UInt256 {
+
     type Output = Self;
 
     fn div(self, divisor: Self) -> Self {
-        if divisor.high == 0 && divisor.low == 0 {
-            panic!("division by zero");
-        }
-
-        if self < divisor {
-            return UInt256::ZERO;
-        }
-
-        if self.cmp(&divisor) == Ordering::Less {
-            return UInt256::ZERO;
-        }
-
-        let mut quotient = UInt256::ZERO;
-        let mut remainder = self;
-        let mut power = divisor;
-
-        // Left shift divisor until it's greater than self, adjusting `power` for the quotient calculation
-        let mut power_of_two = UInt256::new(0, 1);
-        while remainder.cmp(&power.shl(1)) != Ordering::Less {
-            power = power.shl(1);
-            power_of_two = power_of_two.shl(1);
-        }
-
-        // Perform division by shifting and subtracting
-        while power_of_two.cmp(&UInt256::new(0, 0)) != Ordering::Equal {
-            if remainder.cmp(&power) != Ordering::Less {
-                remainder = remainder.sub(power);
-                quotient = quotient | power_of_two;
+        match divisor {
+            UInt256 { high: 0, low: 0 } => panic!("division by zero"),
+            UInt256 { high: 0, low: 1 } => self,
+            _ => {
+                let (quotient, _) = divide(self, divisor);
+                quotient
             }
-            power = power.shr(1);
-            power_of_two = power_of_two.shr(1);
         }
-
-        quotient
     }
 }
 
@@ -521,11 +529,7 @@ mod tests {
         #[test]
         fn test_endian_conversions() {
             let bytes = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
-            // let u256_value = UInt256::from_le(&bytes);
-            // let le_bytes = u256_value.to_le();
-            // assert_eq!(bytes, le_bytes);
-
-            let u256_value = UInt256::from_be(&bytes);
+            let u256_value = UInt256::from_be_bytes(&bytes);
             let be_bytes = u256_value.to_be();
             assert_eq!(bytes, be_bytes);
         }
@@ -533,11 +537,11 @@ mod tests {
         #[test]
         fn test_endian_from() {
             let bytes = vec![0x01, 0x4a];
-            let a = UInt256::from_le(&bytes);
+            let a = UInt256::from_le_bytes(&bytes);
             assert_eq!(format!("{}", a), "0x0000000000000000000000000000000000000000000000000000000000004a01");
             assert_eq!(a, UInt256::from(18945));
 
-            let b = UInt256::from_be(&bytes);
+            let b = UInt256::from_be_bytes(&bytes);
             assert_eq!(format!("{}", b), "0x000000000000000000000000000000000000000000000000000000000000014a");
             assert_eq!(b, UInt256::from(330));
         }
@@ -571,8 +575,7 @@ mod tests {
             let a = UInt256 { high: 12345, low: 67890 };
             let b = UInt256 { high: 0, low: 1 };
             let result = a / b;
-            let quotient = a;
-            assert_eq!(result, quotient);
+            assert_eq!(result, a);
         }
 
         #[test]
