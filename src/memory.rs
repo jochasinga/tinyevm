@@ -30,7 +30,7 @@ impl Memory {
     /// Store a 256-bit integer in memory.
     pub fn store(&mut self, offset: usize, val: UInt256) {
         let bytes = [0x00; 32];
-        val.to_le();
+        val.to_le_bytes();
         for (i, byte) in bytes.iter().enumerate() {
             self.0[offset + i] = *byte;
         }
@@ -45,6 +45,8 @@ impl Memory {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::Endian;
+
     use super::*;
 
     #[test]
@@ -61,7 +63,7 @@ mod tests {
     fn test_memory_store() {
         let mut memory = Memory::new();
         let billion = "0x3b9aca00";
-        let val = UInt256::from_str_radix(billion, 16).unwrap();
+        let val = UInt256::from_str_radix(billion, 16, Endian::Big).unwrap();
         memory.store(0, val);
         let value = memory.load(0);
         let expected = val;

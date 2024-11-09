@@ -1,4 +1,4 @@
-use crate::types::UInt256;
+use crate::types::{Endian, UInt256};
 use std::num::ParseIntError;
 
 use crate::{memory::Memory, opcode::Opcode, storage::Storage};
@@ -62,7 +62,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
             Opcode::PUSH2 => {
                 if let (Some(Opcode(m)), Some(Opcode(n))) = (opcodes.next(), opcodes.next()) {
                     let a = format!("0x{}", format!("{:02x}", m) + &format!("{:02x}", n));
-                    let res = UInt256::from_str_radix(&a, 16).unwrap();
+                    let res = UInt256::from_str_radix(&a, 16, Endian::Big).unwrap();
                     if let Err(e) = stack.push(res) {
                         panic!("{}", e);
                     }
@@ -76,7 +76,7 @@ pub fn eval_opcode(opcode: Vec<Opcode>) -> (Stack, Storage, Memory) {
                         "0x{}",
                         format!("{:02x}", a) + &format!("{:02x}", b) + &format!("{:02x}", c)
                     );
-                    let res = UInt256::from_str_radix(&a, 16).unwrap();
+                    let res = UInt256::from_str_radix(&a, 16, Endian::Big).unwrap();
                     if let Err(e) = stack.push(res) {
                         panic!("{}", e);
                     }
@@ -358,6 +358,8 @@ pub fn lex_bytecode(bytecode: &str) -> Result<Vec<Opcode>, ParseIntError> {
 #[cfg(test)]
 mod tests {
 
+    use crate::types::Endian;
+
     use super::*;
 
     #[test]
@@ -569,7 +571,7 @@ mod tests {
         let (last, rest) = stack.pop();
         assert_eq!(
             last.unwrap(),
-            UInt256::from_str_radix("0x0101", 16).unwrap()
+            UInt256::from_str_radix("0x0101", 16, Endian::Big).unwrap()
         );
         assert_eq!(*rest, Stack::EMPTY);
     }
@@ -583,7 +585,7 @@ mod tests {
         let expected = &format!("{:x}", 77871 + 256);
         assert_eq!(
             last.unwrap(),
-            UInt256::from_str_radix(expected, 16).unwrap()
+            UInt256::from_str_radix(expected, 16, Endian::Big).unwrap()
         );
         assert_eq!(*rest, Stack::EMPTY);
     }
@@ -624,7 +626,7 @@ mod tests {
         assert!(hd.is_none());
         let value: UInt256 = memory.load(0x40_usize);
         let bytes = [0x00; 32];
-        value.to_le();
+        value.to_le_bytes();
         assert_eq!(bytes[0], 0x60);
     }
 
